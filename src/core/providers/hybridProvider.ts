@@ -354,7 +354,7 @@ export const hybridProvider: DataProvider = {
     if (userIndex === -1) throw new Error('User not found');
     
     const user = data.users[userIndex];
-    if (!user.badges) user.badges = [];
+    if (!Array.isArray(user.badges)) user.badges = [];
     
     // Check if badge already exists
     if (user.badges.some((b: any) => b.id === badge.id)) return user;

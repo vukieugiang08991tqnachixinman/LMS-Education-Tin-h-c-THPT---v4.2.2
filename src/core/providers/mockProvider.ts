@@ -324,7 +324,7 @@ export const mockProvider: DataProvider = {
     const index = data.users.findIndex(u => u.id === userId);
     if (index === -1) throw new Error('User not found');
     const user = data.users[index];
-    if (!user.badges) user.badges = [];
+    if (!Array.isArray(user.badges)) user.badges = [];
     if (user.badges.some(b => b.id === badge.id)) return user;
     const newBadge = { ...badge, unlockedAt: new Date().toISOString() };
     user.badges.push(newBadge);

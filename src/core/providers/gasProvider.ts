@@ -51,9 +51,17 @@ export async function callGAS(action: string, payload: any = {}) {
               if (key.endsWith('Json')) {
                 const originalKey = key.replace('Json', '');
                 try {
-                  newItem[originalKey] = typeof item[key] === 'string' ? JSON.parse(item[key]) : item[key];
+                  const val = item[key];
+                  if (typeof val === 'string' && val.trim() !== '') {
+                    newItem[originalKey] = JSON.parse(val);
+                  } else if (typeof val === 'string') {
+                    // Empty string or whitespace, default to array/object based on field
+                    newItem[originalKey] = tableName === 'users' || tableName === 'lessons' || tableName === 'assignments' || tableName === 'bank_questions' || tableName === 'tests' ? [] : {};
+                  } else {
+                    newItem[originalKey] = val;
+                  }
                 } catch (e) {
-                  newItem[originalKey] = item[key];
+                  newItem[originalKey] = [];
                 }
                 delete newItem[key];
               }

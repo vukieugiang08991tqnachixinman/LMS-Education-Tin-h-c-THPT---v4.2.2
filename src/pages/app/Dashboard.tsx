@@ -226,9 +226,9 @@ export const StudentDashboard: React.FC = () => {
           </div>
 
           <div>
-            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">Huy hiệu đã đạt được ({dataProvider.getCurrentUser()?.badges?.length || 0})</p>
+            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">Huy hiệu đã đạt được ({Array.isArray(dataProvider.getCurrentUser()?.badges) ? dataProvider.getCurrentUser()?.badges?.length : 0})</p>
             <div className="flex flex-wrap gap-3">
-              {dataProvider.getCurrentUser()?.badges?.map(badge => (
+              {Array.isArray(dataProvider.getCurrentUser()?.badges) && dataProvider.getCurrentUser()?.badges?.map(badge => (
                 <div key={badge.id} className="group relative">
                   <div className="w-12 h-12 rounded-2xl bg-white border border-indigo-100 shadow-sm flex items-center justify-center text-2xl group-hover:scale-110 transition-transform cursor-help">
                     {badge.icon}
@@ -238,7 +238,7 @@ export const StudentDashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
-              {(dataProvider.getCurrentUser()?.badges?.length || 0) === 0 && (
+              {(!Array.isArray(dataProvider.getCurrentUser()?.badges) || dataProvider.getCurrentUser()?.badges?.length === 0) && (
                 <p className="text-xs text-slate-400 italic">Chưa có huy hiệu nào. Hãy cố gắng nhé!</p>
               )}
             </div>
