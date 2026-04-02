@@ -261,7 +261,7 @@ Trả về mảng JSON gồm các object có 'name' (Tên chương/chủ đề),
   };
 
   const filteredSubjects = subjects.filter(s => 
-    s.name?.toLowerCase().includes(search.toLowerCase())
+    s.name?.toLowerCase()?.includes(search.toLowerCase())
   );
 
   return (

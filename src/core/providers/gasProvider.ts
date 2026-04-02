@@ -55,13 +55,26 @@ export async function callGAS(action: string, payload: any = {}) {
                   if (typeof val === 'string' && val.trim() !== '') {
                     newItem[originalKey] = JSON.parse(val);
                   } else if (typeof val === 'string') {
-                    // Empty string or whitespace, default to array/object based on field
-                    newItem[originalKey] = tableName === 'users' || tableName === 'lessons' || tableName === 'assignments' || tableName === 'bank_questions' || tableName === 'tests' ? [] : {};
+                    // Empty string or whitespace, default to array/object/string based on field
+                    if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
+                      newItem[originalKey] = '';
+                    } else {
+                      newItem[originalKey] = tableName === 'users' || tableName === 'lessons' || tableName === 'assignments' || tableName === 'bank_questions' || tableName === 'tests' ? [] : {};
+                    }
                   } else {
                     newItem[originalKey] = val;
                   }
                 } catch (e) {
-                  newItem[originalKey] = [];
+                  const val = item[key];
+                  if (typeof val === 'string') {
+                    if (val.trim().startsWith('[') || val.trim().startsWith('{')) {
+                      newItem[originalKey] = val.trim().startsWith('[') ? [] : {};
+                    } else {
+                      newItem[originalKey] = val; // It's a raw string
+                    }
+                  } else {
+                    newItem[originalKey] = [];
+                  }
                 }
                 delete newItem[key];
               }
@@ -97,7 +110,7 @@ function mapToBackend(resource: string, record: any) {
   if (jsonFields[resource]) {
     jsonFields[resource].forEach(field => {
       if (record[field] !== undefined) {
-        mapped[`${field}Json`] = typeof record[field] === 'object' ? JSON.stringify(record[field]) : record[field];
+        mapped[`${field}Json`] = JSON.stringify(record[field]);
         delete mapped[field];
       }
     });

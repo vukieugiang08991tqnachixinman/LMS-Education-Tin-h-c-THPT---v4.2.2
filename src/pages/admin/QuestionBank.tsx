@@ -249,8 +249,8 @@ LƯU Ý:
         "difficulty": "recognition" | "understanding" | "application",
         "content": "Nội dung câu hỏi",
         "points": 1,
-        "options": ["A", "B", "C", "D"], // Chỉ dành cho multiple_choice
-        "correctAnswer": "Đáp án đúng", // Dành cho multiple_choice, short_answer, essay (hướng dẫn chấm)
+        "options": ["Lựa chọn 1", "Lựa chọn 2", "Lựa chọn 3", "Lựa chọn 4"], // Chỉ dành cho multiple_choice
+        "correctAnswer": "Nội dung chính xác của đáp án đúng (không phải A, B, C, D)", // Dành cho multiple_choice, short_answer, essay (hướng dẫn chấm)
         "subQuestions": [ // Chỉ dành cho true_false
           { "id": "a", "content": "Mệnh đề 1", "correctAnswer": true, "difficulty": "recognition", "explanation": "Giải thích chi tiết" },
           { "id": "b", "content": "Mệnh đề 2", "correctAnswer": false, "difficulty": "understanding", "explanation": "Giải thích chi tiết" }
@@ -390,7 +390,9 @@ LƯU Ý:
 
           if (type === 'multiple_choice') {
             options = [optA, optB, optC, optD].filter(Boolean);
-            correctAnswer = correctAnswerRaw.trim().toUpperCase();
+            const ansLetter = correctAnswerRaw.trim().toUpperCase();
+            const ansIndex = ansLetter === 'A' ? 0 : ansLetter === 'B' ? 1 : ansLetter === 'C' ? 2 : ansLetter === 'D' ? 3 : -1;
+            correctAnswer = ansIndex !== -1 ? options[ansIndex] : correctAnswerRaw;
           } else if (type === 'true_false') {
             // Parse true/false answers like "Đúng, Sai, Đúng, Sai" or "T, F, T, F" or "1, 0, 1, 0"
             const ansParts = correctAnswerRaw.split(',').map((s: string) => s.trim().toLowerCase());
@@ -487,8 +489,8 @@ LƯU Ý:
             "content": "Nội dung câu hỏi (đối với Phần II là nội dung dẫn/Lệnh dẫn)",
             "points": 1,
             "explanation": "Giải thích đáp án chung",
-            "options": ["A", "B", "C", "D"], // Chỉ dành cho multiple_choice
-            "correctAnswer": "Đáp án đúng", // Dành cho multiple_choice, short_answer, essay
+            "options": ["Lựa chọn 1", "Lựa chọn 2", "Lựa chọn 3", "Lựa chọn 4"], // Chỉ dành cho multiple_choice
+            "correctAnswer": "Nội dung chính xác của đáp án đúng (không phải A, B, C, D)", // Dành cho multiple_choice, short_answer, essay
             "subQuestions": [ // BẮT BUỘC dành cho true_false, gồm 4 ý a, b, c, d
               { "id": "a", "content": "Nội dung ý a", "correctAnswer": true, "explanation": "Giải thích tại sao đúng/sai", "difficulty": "recognition" },
               { "id": "b", "content": "Nội dung ý b", "correctAnswer": false, "explanation": "Giải thích tại sao đúng/sai", "difficulty": "recognition" },
@@ -634,8 +636,15 @@ LƯU Ý:
       }
     }
     const options = [...(Array.isArray(currentOptions) ? currentOptions : [])];
+    const oldOpt = options[optIndex];
     options[optIndex] = value;
-    newQuestions[qIndex] = { ...newQuestions[qIndex], options };
+    
+    let correctAnswer = newQuestions[qIndex].correctAnswer;
+    if (correctAnswer === oldOpt) {
+      correctAnswer = value;
+    }
+    
+    newQuestions[qIndex] = { ...newQuestions[qIndex], options, correctAnswer };
     setPreviewQuestions(newQuestions);
   };
 
@@ -662,7 +671,7 @@ LƯU Ý:
   };
 
   const filteredQuestions = questions.filter(q => {
-    if (search && !q.content?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !q.content?.toLowerCase()?.includes(search.toLowerCase())) return false;
     if (filterSubject && q.subjectId !== filterSubject) return false;
     if (filterTopic && q.topicId !== filterTopic) return false;
     if (filterDifficulty && q.difficulty !== filterDifficulty) return false;
@@ -1546,8 +1555,8 @@ LƯU Ý:
                       <input
                         type="radio"
                         name={`correct-${qIndex}`}
-                        checked={q.correctAnswer === String.fromCharCode(65 + optIndex)}
-                        onChange={() => handlePreviewChange(qIndex, 'correctAnswer', String.fromCharCode(65 + optIndex))}
+                        checked={q.correctAnswer === opt && opt !== ''}
+                        onChange={() => handlePreviewChange(qIndex, 'correctAnswer', opt)}
                         className="w-4 h-4 text-indigo-600"
                       />
                       <span className="text-sm font-medium w-6">{String.fromCharCode(65 + optIndex)}.</span>

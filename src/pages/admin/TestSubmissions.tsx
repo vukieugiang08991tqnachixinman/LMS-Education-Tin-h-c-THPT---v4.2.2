@@ -50,8 +50,8 @@ export const TestSubmissions: React.FC = () => {
   if (!test) return <div className="min-h-screen flex items-center justify-center">Đang tải...</div>;
 
   const filteredSubmissions = submissions.filter(sub => 
-    sub.student?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    sub.class?.name?.toLowerCase().includes(search.toLowerCase())
+    sub.student?.name?.toLowerCase()?.includes(search.toLowerCase()) ||
+    sub.class?.name?.toLowerCase()?.includes(search.toLowerCase())
   );
 
   return (

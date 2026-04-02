@@ -18,16 +18,17 @@ export const StudentLessons = () => {
   useEffect(() => {
     const syncAndFetch = async () => {
       if (user) {
-        setLoading(true);
+        await fetchData(); // Load immediately from local storage
+        setLoading(false);
+        
         try {
           await dataProvider.syncWithGAS();
+          await fetchData(); // Refresh after sync
         } catch (e: any) {
           if (e.message !== 'GAS_NOT_CONFIGURED') {
             console.error("Sync error:", e);
           }
         }
-        await fetchData();
-        setLoading(false);
       }
     };
     syncAndFetch();

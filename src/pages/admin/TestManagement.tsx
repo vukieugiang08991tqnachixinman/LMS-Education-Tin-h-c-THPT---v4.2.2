@@ -696,7 +696,7 @@ HẾT ---`;
   };
 
   const filteredTests = tests.filter(t => 
-    t.title?.toLowerCase().includes(search.toLowerCase())
+    t.title?.toLowerCase()?.includes(search.toLowerCase())
   );
 
   return (
@@ -1581,7 +1581,7 @@ HẾT ---`;
 
           <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-xl">
             {bankQuestions.filter(q => {
-              if (bankSearch && !q.content?.toLowerCase().includes(bankSearch.toLowerCase())) return false;
+              if (bankSearch && !q.content?.toLowerCase()?.includes(bankSearch.toLowerCase())) return false;
               if (bankFilterSubject && q.subjectId !== bankFilterSubject) return false;
               if (bankFilterTopic && q.topicId !== bankFilterTopic) return false;
               if (bankFilterDifficulty && q.difficulty !== bankFilterDifficulty) return false;

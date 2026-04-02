@@ -70,8 +70,8 @@ export const ClassManagement: React.FC = () => {
   };
 
   const filteredClasses = classes.filter(c => 
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.teacherName?.toLowerCase().includes(search.toLowerCase())
+    c.name?.toLowerCase()?.includes(search.toLowerCase()) ||
+    c.teacherName?.toLowerCase()?.includes(search.toLowerCase())
   );
 
   return (

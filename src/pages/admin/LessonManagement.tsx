@@ -789,7 +789,7 @@ const LessonManagement = () => {
     if (filterClassId && String(lesson.classId) !== String(filterClassId)) return false;
     if (filterTopicId && lesson.topicId !== filterTopicId) return false;
     if (filterStatus && lesson.status !== filterStatus) return false;
-    if (searchTitle && !lesson.title.toLowerCase().includes(searchTitle.toLowerCase())) return false;
+    if (searchTitle && !lesson.title?.toLowerCase()?.includes(searchTitle.toLowerCase())) return false;
     
     if (filterSubjectId) {
       const topic = topics.find(t => t.id === lesson.topicId);

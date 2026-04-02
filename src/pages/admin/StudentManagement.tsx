@@ -90,8 +90,8 @@ export const StudentManagement: React.FC = () => {
   
   const classStudents = students.filter(s => String(s.classId) === String(selectedClassId));
   const filteredStudents = classStudents.filter(s => 
-    s.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-    s.username?.toLowerCase().includes(search.toLowerCase())
+    s.fullName?.toLowerCase()?.includes(search.toLowerCase()) ||
+    s.username?.toLowerCase()?.includes(search.toLowerCase())
   );
 
   return (

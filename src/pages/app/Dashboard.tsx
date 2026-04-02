@@ -78,14 +78,16 @@ export const StudentDashboard: React.FC = () => {
     };
     
     const syncAndFetch = async () => {
+      fetchData(); // Load immediately from local storage
+      
       try {
         await dataProvider.syncWithGAS();
+        fetchData(); // Refresh after sync
       } catch (e: any) {
         if (e.message !== 'GAS_NOT_CONFIGURED') {
           console.error("Sync error:", e);
         }
       }
-      fetchData();
     };
     syncAndFetch();
 
