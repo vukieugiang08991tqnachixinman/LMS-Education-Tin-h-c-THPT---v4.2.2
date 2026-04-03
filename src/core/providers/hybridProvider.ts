@@ -179,9 +179,13 @@ export const hybridProvider: DataProvider = {
     saveData(data);
 
     // Background sync to GAS
-    import('./gasProvider').then(({ gasProvider }) => {
+    import('./gasProvider').then(({ gasProvider, mapToBackend }) => {
       // Use sync_all since sync_table might not be implemented in GAS
-      gasProvider.callGAS?.('sync_all', data).catch(err => console.warn('[Hybrid] Background createMany failed:', err));
+      const mappedData: any = {};
+      Object.keys(data).forEach(resource => {
+        mappedData[resource] = data[resource].map((item: any) => mapToBackend(resource, item));
+      });
+      gasProvider.callGAS?.('sync_all', mappedData).catch(err => console.warn('[Hybrid] Background createMany failed:', err));
     });
     
     return newItems as T[];

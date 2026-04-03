@@ -53,7 +53,16 @@ export async function callGAS(action: string, payload: any = {}) {
                 try {
                   const val = item[key];
                   if (typeof val === 'string' && val.trim() !== '') {
-                    newItem[originalKey] = JSON.parse(val);
+                    const parsed = JSON.parse(val);
+                    if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
+                      if (Array.isArray(parsed)) {
+                        newItem[originalKey] = parsed.length > 0 ? String(parsed[0]) : '';
+                      } else {
+                        newItem[originalKey] = parsed;
+                      }
+                    } else {
+                      newItem[originalKey] = parsed;
+                    }
                   } else if (typeof val === 'string') {
                     // Empty string or whitespace, default to array/object/string based on field
                     if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
@@ -62,7 +71,15 @@ export async function callGAS(action: string, payload: any = {}) {
                       newItem[originalKey] = tableName === 'users' || tableName === 'lessons' || tableName === 'assignments' || tableName === 'bank_questions' || tableName === 'tests' ? [] : {};
                     }
                   } else {
-                    newItem[originalKey] = val;
+                    if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
+                      if (Array.isArray(val)) {
+                        newItem[originalKey] = val.length > 0 ? String(val[0]) : '';
+                      } else {
+                        newItem[originalKey] = val;
+                      }
+                    } else {
+                      newItem[originalKey] = val;
+                    }
                   }
                 } catch (e) {
                   const val = item[key];
@@ -95,13 +112,13 @@ export async function callGAS(action: string, payload: any = {}) {
 }
 
 // Helper to map frontend record to backend schema (adding Json suffix where needed)
-function mapToBackend(resource: string, record: any) {
+export function mapToBackend(resource: string, record: any) {
   const mapped: any = { ...record };
   const jsonFields: Record<string, string[]> = {
     'users': ['badges'],
     'lessons': ['interactiveContent', 'essayQuestions'],
     'assignments': ['studentIds', 'attachments', 'questions'],
-    'bank_questions': ['options', 'correctAnswer', 'subQuestions'],
+    'bank_questions': ['options', 'subQuestions'],
     'tests': ['questions', 'assignedTo'],
     'progresses': ['quizScores', 'essayAnswers', 'teacherFeedback'],
     'reports': ['data']
@@ -115,6 +132,20 @@ function mapToBackend(resource: string, record: any) {
       }
     });
   }
+
+  // Ensure correctAnswer and explanation are sent in both raw and Json formats
+  // to be compatible with any backend schema
+  if (resource === 'bank_questions') {
+    if (record.correctAnswer !== undefined) {
+      mapped.correctAnswer = record.correctAnswer;
+      mapped.correctAnswerJson = JSON.stringify(record.correctAnswer);
+    }
+    if (record.explanation !== undefined) {
+      mapped.explanation = record.explanation;
+      mapped.explanationJson = JSON.stringify(record.explanation);
+    }
+  }
+
   return mapped;
 }
 
@@ -234,7 +265,8 @@ export const gasProvider: DataProvider = {
     const user = await gasProvider.getOne<User>('users', userId);
     user.xp = (user.xp || 0) + amount;
     user.level = Math.floor(Math.sqrt(user.xp / 100)) + 1;
-    await callGAS('upsert_record', { table: 'users', record: user });
+    const record = mapToBackend('users', user);
+    await callGAS('upsert_record', { table: 'users', record });
     return user;
   },
   awardBadge: async (userId: string, badge: Omit<Badge, 'unlockedAt'>) => {
@@ -243,7 +275,8 @@ export const gasProvider: DataProvider = {
     if (user.badges.some((b: any) => b.id === badge.id)) return user;
     const newBadge = { ...badge, unlockedAt: new Date().toISOString() };
     user.badges.push(newBadge);
-    await callGAS('upsert_record', { table: 'users', record: user });
+    const record = mapToBackend('users', user);
+    await callGAS('upsert_record', { table: 'users', record });
     return user;
   },
   getLeaderboard: async () => {

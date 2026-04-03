@@ -25,6 +25,8 @@ export const QuestionBank: React.FC = () => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewQuestions, setPreviewQuestions] = useState<BankQuestion[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   // Form states
   const [editingQuestion, setEditingQuestion] = useState<BankQuestion | null>(null);
@@ -152,6 +154,12 @@ LƯU Ý:
           parsedQuestion.subQuestions = [];
         }
       }
+      if (Array.isArray(parsedQuestion.correctAnswer) && parsedQuestion.correctAnswer.length === 0) {
+        parsedQuestion.correctAnswer = '';
+      }
+      if (Array.isArray(parsedQuestion.explanation) && parsedQuestion.explanation.length === 0) {
+        parsedQuestion.explanation = '';
+      }
       setQuestionForm(parsedQuestion);
     } else {
       setEditingQuestion(null);
@@ -172,10 +180,14 @@ LƯU Ý:
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = { ...questionForm };
+      if (payload.type !== 'true_false') {
+        payload.correctAnswer = String(payload.correctAnswer || '');
+      }
       if (editingQuestion) {
-        await dataProvider.update('bank_questions', editingQuestion.id, questionForm);
+        await dataProvider.update('bank_questions', editingQuestion.id, payload);
       } else {
-        await dataProvider.create('bank_questions', { ...questionForm, createdAt: new Date().toISOString() });
+        await dataProvider.create('bank_questions', { ...payload, createdAt: new Date().toISOString() });
       }
       setIsQuestionModalOpen(false);
       fetchData();
@@ -189,10 +201,36 @@ LƯU Ý:
       try {
         await dataProvider.delete('bank_questions', confirmDelete);
         setConfirmDelete(null);
+        setSelectedQuestions(prev => prev.filter(id => id !== confirmDelete));
         fetchData();
       } catch (error) {
         console.error("Error deleting question", error);
       }
+    }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedQuestions(filteredQuestions.map(q => q.id));
+    } else {
+      setSelectedQuestions([]);
+    }
+  };
+
+  const handleSelectQuestion = (id: string) => {
+    setSelectedQuestions(prev => 
+      prev.includes(id) ? prev.filter(qId => qId !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await Promise.all(selectedQuestions.map(id => dataProvider.delete('bank_questions', id)));
+      setConfirmBulkDelete(false);
+      setSelectedQuestions([]);
+      fetchData();
+    } catch (error) {
+      console.error("Error bulk deleting questions", error);
     }
   };
 
@@ -392,7 +430,7 @@ LƯU Ý:
             options = [optA, optB, optC, optD].filter(Boolean);
             const ansLetter = correctAnswerRaw.trim().toUpperCase();
             const ansIndex = ansLetter === 'A' ? 0 : ansLetter === 'B' ? 1 : ansLetter === 'C' ? 2 : ansLetter === 'D' ? 3 : -1;
-            correctAnswer = ansIndex !== -1 ? options[ansIndex] : correctAnswerRaw;
+            correctAnswer = ansIndex !== -1 ? String(options[ansIndex]) : String(correctAnswerRaw);
           } else if (type === 'true_false') {
             // Parse true/false answers like "Đúng, Sai, Đúng, Sai" or "T, F, T, F" or "1, 0, 1, 0"
             const ansParts = correctAnswerRaw.split(',').map((s: string) => s.trim().toLowerCase());
@@ -405,6 +443,8 @@ LƯU Ý:
               { id: `sq_${Date.now()}_4`, content: optD, correctAnswer: getBool(ansParts[3]), difficulty }
             ].filter(sq => sq.content);
             correctAnswer = undefined;
+          } else {
+            correctAnswer = String(correctAnswerRaw);
           }
 
           return {
@@ -716,6 +756,19 @@ LƯU Ý:
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-6 gap-4">
+        {selectedQuestions.length > 0 && (
+          <div className="col-span-1 md:col-span-6 flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2">
+            <span className="text-sm font-medium text-indigo-800">
+              Đã chọn {selectedQuestions.length} câu hỏi
+            </span>
+            <button
+              onClick={() => setConfirmBulkDelete(true)}
+              className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Xóa đã chọn
+            </button>
+          </div>
+        )}
         <div className="relative col-span-1 md:col-span-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
@@ -770,6 +823,14 @@ LƯU Ý:
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-12 text-center">
+                <input
+                  type="checkbox"
+                  checked={filteredQuestions.length > 0 && selectedQuestions.length === filteredQuestions.length}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                />
+              </th>
               <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-16">ID</th>
               <th className="py-3 px-6 text-sm font-semibold text-gray-600">Nội dung</th>
               <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-32">Loại</th>
@@ -779,7 +840,15 @@ LƯU Ý:
           </thead>
           <tbody>
             {filteredQuestions.length > 0 ? filteredQuestions.map((q, index) => (
-              <tr key={`${q.id}-${index}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+              <tr key={`${q.id}-${index}`} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedQuestions.includes(q.id) ? 'bg-indigo-50/30' : ''}`}>
+                <td className="py-4 px-6 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedQuestions.includes(q.id)}
+                    onChange={() => handleSelectQuestion(q.id)}
+                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                  />
+                </td>
                 <td className="py-4 px-6 text-sm text-gray-500">{q.id.substring(0, 6)}</td>
                 <td className="py-4 px-6">
                   <div className="font-medium text-gray-900 line-clamp-2">{q.content}</div>
@@ -1670,6 +1739,31 @@ LƯU Ý:
               ) : (
                 <span>Lưu vào ngân hàng</span>
               )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Xác nhận xóa hàng loạt */}
+      <Modal
+        isOpen={confirmBulkDelete}
+        onClose={() => setConfirmBulkDelete(false)}
+        title="Xác nhận xóa hàng loạt"
+      >
+        <div className="p-4">
+          <p className="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa {selectedQuestions.length} câu hỏi đã chọn không?</p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setConfirmBulkDelete(false)}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
+            >
+              Xóa tất cả
             </button>
           </div>
         </div>
