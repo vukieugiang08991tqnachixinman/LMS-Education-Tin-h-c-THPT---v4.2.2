@@ -340,12 +340,12 @@ LƯU Ý:
       const jsonText = response.text || '[]';
       const generatedQuestions = parseTruncatedJSON(jsonText);
       
-      const newQuestionsPayloads = generatedQuestions.map((q: any) => ({
+      const newQuestionsPayloads = generatedQuestions.map((q: any, index: number) => ({
         ...q,
-        id: `bq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        subQuestions: q.subQuestions?.map((sq: any) => ({
+        id: `bq_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+        subQuestions: q.subQuestions?.map((sq: any, sqIdx: number) => ({
           ...sq,
-          id: `sq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          id: `sq_${Date.now()}_${index}_${sqIdx}_${Math.random().toString(36).substr(2, 9)}`
         })),
         subjectId: aiConfig.subjectId,
         topicId: aiConfig.topicId,
@@ -411,7 +411,7 @@ LƯU Ý:
         // Skip header row
         const rows = data.slice(1).filter(row => row.length > 0 && row[2]); // Must have content
         
-        const newQuestionsPayloads: BankQuestion[] = rows.map((row) => {
+        const newQuestionsPayloads: BankQuestion[] = rows.map((row, index) => {
           const rawType = String(row[0] || '').toLowerCase();
           const rawDifficulty = String(row[1] || '').toLowerCase();
           
@@ -445,7 +445,7 @@ LƯU Ý:
           const correctAnswerRaw = row[7] || '';
           const explanation = row[8] || '';
 
-          const qId = `bq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const qId = `bq_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
 
           let options: string[] | undefined = undefined;
           let correctAnswer: any = correctAnswerRaw;
@@ -633,15 +633,15 @@ LƯU Ý:
         const jsonText = response.text || '[]';
         const extractedQuestions = parseTruncatedJSON(jsonText);
         
-        const newQuestionsPayloads = extractedQuestions.map((q: any) => ({
+        const newQuestionsPayloads = extractedQuestions.map((q: any, index: number) => ({
           ...q,
           type: importConfig.type || q.type,
           difficulty: importConfig.difficulty || q.difficulty,
-          id: `bq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          subQuestions: q.subQuestions?.map((sq: any) => ({
+          id: `bq_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+          subQuestions: q.subQuestions?.map((sq: any, sqIdx: number) => ({
             ...sq,
             difficulty: importConfig.difficulty || sq.difficulty,
-            id: `sq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            id: `sq_${Date.now()}_${index}_${sqIdx}_${Math.random().toString(36).substr(2, 9)}`
           })),
           subjectId: importConfig.subjectId,
           topicId: importConfig.topicId,
@@ -1615,7 +1615,7 @@ LƯU Ý:
       >
         <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
           {previewQuestions.map((q, qIndex) => (
-            <div key={q.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+            <div key={`${q.id}-${qIndex}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
               <button
                 onClick={() => handleRemovePreviewQuestion(qIndex)}
                 className="absolute top-4 right-4 text-red-500 hover:text-red-700 p-1 bg-red-50 rounded-lg"

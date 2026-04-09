@@ -279,7 +279,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
             const studentAnswer = answers[q.id];
             
             return (
-              <div key={q.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div key={`${q.id}-${idx}`} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <span className="text-sm font-bold text-indigo-600 uppercase tracking-wider block mb-1">

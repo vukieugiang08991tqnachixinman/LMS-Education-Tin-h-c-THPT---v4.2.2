@@ -1473,6 +1473,7 @@ const LessonManagement = () => {
         isOpen={isGradingModalOpen}
         onClose={() => { setIsGradingModalOpen(false); setEditingSubmissionId(null); }}
         title="Theo dõi & Nhận xét học sinh"
+        size="5xl"
       >
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
           <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-sm font-medium flex items-center gap-2">
@@ -1860,7 +1861,7 @@ const StudentProgressRow = ({ student, progress, lesson, onSaveFeedback }: { stu
           {lesson.essayQuestions.map((q, idx) => {
             const answer = progress?.essayAnswers?.[q.id];
             return (
-              <div key={q.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+              <div key={`${q.id}-${idx}`} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                 <p className="text-sm font-medium text-gray-800 mb-2">Câu {idx + 1}: {q.content}</p>
                 {answer ? (
                   <div className="text-sm text-gray-600 bg-white p-2 rounded-lg border border-gray-200 whitespace-pre-wrap">
