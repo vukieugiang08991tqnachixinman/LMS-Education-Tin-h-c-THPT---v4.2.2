@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, BookOpen, CheckCircle, XCircle, Sparkles, Loader2, FileText, Upload, FileUp, Users, Check, Video, HelpCircle, Code, Image as ImageIcon, GripVertical, RefreshCw, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, BookOpen, CheckCircle, XCircle, Sparkles, Loader2, FileText, Upload, Users, Check, Video, HelpCircle, Code, Image as ImageIcon, GripVertical, RefreshCw, Search, Download } from 'lucide-react';
 import { dataProvider } from '../../core/provider';
 import { Lesson, Subject, Topic, Assignment, Submission, User, InteractiveBlock, Class, Question, QuestionType, BankQuestion } from '../../core/types';
 import { Modal } from '../../components/Modal';
-import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { ensureArray } from '../../core/utils/data';
-import { parseTruncatedJSON } from '../../utils/jsonUtils';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 export const AssignmentManagement = () => {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -22,6 +23,7 @@ export const AssignmentManagement = () => {
   const [filterSubjectId, setFilterSubjectId] = useState('');
   const [filterTopicId, setFilterTopicId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterAssignmentStatus, setFilterAssignmentStatus] = useState<'all' | 'pending' | 'submitted' | 'graded' | 'overdue'>('all');
   const [searchTitle, setSearchTitle] = useState('');
   
   const [formData, setFormData] = useState({
@@ -42,6 +44,7 @@ export const AssignmentManagement = () => {
 
   // Assignment State
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [assignmentModalTab, setAssignmentModalTab] = useState<'info' | 'questions'>('info');
   const [selectedLessonForAssignment, setSelectedLessonForAssignment] = useState<Lesson | null>(null);
   const [assignmentFormData, setAssignmentFormData] = useState({
     title: '',
@@ -49,10 +52,8 @@ export const AssignmentManagement = () => {
     dueDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0], // Default 1 week
     classId: '',
     studentIds: [] as string[],
-    part1: '',
-    part2: '',
-    part3: '',
-    part4: ''
+    questions: [] as Question[],
+    attachments: [] as string[]
   });
 
   // Grading State
@@ -60,12 +61,14 @@ export const AssignmentManagement = () => {
   const [selectedLessonForGrading, setSelectedLessonForGrading] = useState<Lesson | null>(null);
   const [lessonAssignments, setLessonAssignments] = useState<Assignment[]>([]);
   const [lessonSubmissions, setLessonSubmissions] = useState<Submission[]>([]);
+  const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
   const [students, setStudents] = useState<User[]>([]);
   const [gradingData, setGradingData] = useState<{ score: string, feedback: string }>({ score: '', feedback: '' });
   const [editingSubmissionId, setEditingSubmissionId] = useState<string | null>(null);
 
   // Independent Assignment State
   const [isIndependentAssignmentModalOpen, setIsIndependentAssignmentModalOpen] = useState(false);
+  const [independentAssignmentModalTab, setIndependentAssignmentModalTab] = useState<'info' | 'questions'>('info');
   const [editingIndependentAssignmentId, setEditingIndependentAssignmentId] = useState<string | null>(null);
   const [independentAssignmentFormData, setIndependentAssignmentFormData] = useState({
     title: '',
@@ -77,11 +80,7 @@ export const AssignmentManagement = () => {
     topicId: '',
     studentIds: [] as string[],
     attachments: [] as string[],
-    questions: [] as Question[],
-    part1: '',
-    part2: '',
-    part3: '',
-    part4: ''
+    questions: [] as Question[]
   });
   const [classStudents, setClassStudents] = useState<User[]>([]);
   const [selectAllStudents, setSelectAllStudents] = useState(false);
@@ -90,29 +89,40 @@ export const AssignmentManagement = () => {
   // Question Bank Modal State
   const [isQuestionBankModalOpen, setIsQuestionBankModalOpen] = useState(false);
   const [targetFormForQuestionBank, setTargetFormForQuestionBank] = useState<'lesson' | 'independent'>('lesson');
-  const [targetPartForQuestionBank, setTargetPartForQuestionBank] = useState<'part1' | 'part2' | 'part3' | 'part4'>('part1');
   const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>([]);
   const [selectedBankQuestions, setSelectedBankQuestions] = useState<string[]>([]);
   const [qbFilterSubject, setQbFilterSubject] = useState('');
   const [qbFilterTopic, setQbFilterTopic] = useState('');
   const [qbFilterDifficulty, setQbFilterDifficulty] = useState('');
+  const [qbFilterType, setQbFilterType] = useState('');
   const [qbSearch, setQbSearch] = useState('');
 
-
+  // File Import state
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+  const [questionForm, setQuestionForm] = useState<Partial<Question>>({
+    type: 'multiple_choice',
+    difficulty: 'recognition',
+    content: '',
+    options: ['', '', '', ''],
+    correctAnswer: '',
+    points: 1
+  });
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const [lesData, subData, topData, classData, studentData, assignData, bankQuestionsData] = await Promise.all([
+    const [lesData, subData, topData, classData, studentData, assignData, bankQuestionsData, submissionData] = await Promise.all([
       dataProvider.getList<Lesson>('lessons'),
       dataProvider.getList<Subject>('subjects'),
       dataProvider.getList<Topic>('topics'),
       dataProvider.getList<Class>('classes'),
       dataProvider.getList<User>('users', { role: 'student' }),
       dataProvider.getList<Assignment>('assignments'),
-      dataProvider.getList<BankQuestion>('bank_questions')
+      dataProvider.getList<BankQuestion>('bank_questions'),
+      dataProvider.getList<Submission>('submissions')
     ]);
     setLessons(lesData);
     setSubjects(subData);
@@ -121,11 +131,12 @@ export const AssignmentManagement = () => {
     setStudents(studentData);
     setAssignments(assignData);
     setBankQuestions(bankQuestionsData);
+    setAllSubmissions(submissionData);
   };
 
-  const handleOpenQuestionBankModal = (formType: 'lesson' | 'independent', part: 'part1' | 'part2' | 'part3' | 'part4') => {
+  const handleOpenQuestionBankModal = (formType: 'lesson' | 'independent') => {
     setTargetFormForQuestionBank(formType);
-    setTargetPartForQuestionBank(part);
+    setQbFilterType('');
     setSelectedBankQuestions([]);
     setIsQuestionBankModalOpen(true);
   };
@@ -137,36 +148,123 @@ export const AssignmentManagement = () => {
       return;
     }
 
-    let formattedText = '';
-    selectedQs.forEach((q, idx) => {
-      formattedText += `Câu ${idx + 1}: ${q.content}\n`;
-      if (q.type === 'multiple_choice' && q.options) {
-        const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
-        q.options.forEach((opt, i) => {
-          formattedText += `${labels[i]}. ${opt}\n`;
-        });
-      } else if (q.type === 'true_false' && q.subQuestions) {
-        const labels = ['a', 'b', 'c', 'd', 'e', 'f'];
-        q.subQuestions.forEach((subQ, i) => {
-          formattedText += `${labels[i]}) ${subQ.content}\n`;
-        });
-      }
-      formattedText += '\n';
+    const newQuestions = selectedQs.map(q => {
+      const { subjectId, topicId, createdAt, ...rest } = q;
+      return rest as Question;
     });
 
     if (targetFormForQuestionBank === 'lesson') {
       setAssignmentFormData(prev => ({
         ...prev,
-        [targetPartForQuestionBank]: prev[targetPartForQuestionBank] ? prev[targetPartForQuestionBank] + '\n\n' + formattedText : formattedText
+        questions: [...(prev.questions || []), ...newQuestions]
       }));
     } else {
       setIndependentAssignmentFormData(prev => ({
         ...prev,
-        [targetPartForQuestionBank]: prev[targetPartForQuestionBank] ? prev[targetPartForQuestionBank] + '\n\n' + formattedText : formattedText
+        questions: [...(prev.questions || []), ...newQuestions]
       }));
     }
 
     setIsQuestionBankModalOpen(false);
+  };
+
+  const handleOpenQuestionModal = (formType: 'lesson' | 'independent', index?: number, type?: QuestionType) => {
+    setTargetFormForQuestionBank(formType);
+    const currentForm = formType === 'lesson' ? assignmentFormData : independentAssignmentFormData;
+    
+    if (index !== undefined && currentForm.questions) {
+      setEditingQuestionIndex(index);
+      const q = { ...currentForm.questions[index] };
+      if (typeof q.options === 'string') {
+        try {
+          q.options = JSON.parse(q.options);
+        } catch (e) {
+          q.options = ['', '', '', ''];
+        }
+      }
+      if (typeof q.subQuestions === 'string') {
+        try {
+          q.subQuestions = JSON.parse(q.subQuestions);
+        } catch (e) {
+          q.subQuestions = [];
+        }
+      }
+      if (q.type === 'true_false' && (!q.subQuestions || q.subQuestions.length === 0)) {
+        q.subQuestions = [
+          { id: 'a', content: '', difficulty: 'recognition', correctAnswer: true },
+          { id: 'b', content: '', difficulty: 'recognition', correctAnswer: true },
+          { id: 'c', content: '', difficulty: 'recognition', correctAnswer: true },
+          { id: 'd', content: '', difficulty: 'recognition', correctAnswer: true }
+        ];
+      }
+      setQuestionForm(q);
+    } else {
+      setEditingQuestionIndex(null);
+      const defaultType = type || 'multiple_choice';
+      setQuestionForm({
+        type: defaultType,
+        difficulty: 'recognition',
+        content: '',
+        options: defaultType === 'multiple_choice' ? ['', '', '', ''] : [],
+        correctAnswer: defaultType === 'true_false' ? 'true' : '',
+        subQuestions: defaultType === 'true_false' ? [
+          { id: 'a', content: '', difficulty: 'recognition', correctAnswer: true },
+          { id: 'b', content: '', difficulty: 'recognition', correctAnswer: true },
+          { id: 'c', content: '', difficulty: 'recognition', correctAnswer: true },
+          { id: 'd', content: '', difficulty: 'recognition', correctAnswer: true }
+        ] : [],
+        points: 1
+      });
+    }
+    setIsQuestionModalOpen(true);
+  };
+
+  const handleSaveQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentForm = targetFormForQuestionBank === 'lesson' ? assignmentFormData : independentAssignmentFormData;
+    const newQuestions = [...(currentForm.questions || [])];
+    const q = { 
+      ...questionForm, 
+      id: questionForm.id || Math.random().toString(36).substr(2, 9),
+      points: questionForm.type === 'true_false' ? 1 : questionForm.points
+    } as Question;
+    
+    if (editingQuestionIndex !== null) {
+      newQuestions[editingQuestionIndex] = q;
+    } else {
+      newQuestions.push(q);
+    }
+    
+    if (targetFormForQuestionBank === 'lesson') {
+      setAssignmentFormData({ ...assignmentFormData, questions: newQuestions });
+    } else {
+      setIndependentAssignmentFormData({ ...independentAssignmentFormData, questions: newQuestions });
+    }
+    setIsQuestionModalOpen(false);
+  };
+
+  const removeQuestion = (formType: 'lesson' | 'independent', index: number) => {
+    if (formType === 'lesson') {
+      const newQuestions = [...(assignmentFormData.questions || [])];
+      newQuestions.splice(index, 1);
+      setAssignmentFormData({ ...assignmentFormData, questions: newQuestions });
+    } else {
+      const newQuestions = [...(independentAssignmentFormData.questions || [])];
+      newQuestions.splice(index, 1);
+      setIndependentAssignmentFormData({ ...independentAssignmentFormData, questions: newQuestions });
+    }
+  };
+
+  const updateQuestionPoints = (formType: 'lesson' | 'independent', index: number, points: number) => {
+    if (formType === 'lesson') {
+      const newQuestions = [...(assignmentFormData.questions || [])];
+      newQuestions[index] = { ...newQuestions[index], points };
+      setAssignmentFormData({ ...assignmentFormData, questions: newQuestions });
+    } else {
+      const newQuestions = [...(independentAssignmentFormData.questions || [])];
+      newQuestions[index] = { ...newQuestions[index], points };
+      setIndependentAssignmentFormData({ ...independentAssignmentFormData, questions: newQuestions });
+    }
   };
 
   const filteredBankQuestions = bankQuestions.filter(q => {
@@ -174,13 +272,7 @@ export const AssignmentManagement = () => {
     const matchTopic = !qbFilterTopic || q.topicId === qbFilterTopic;
     const matchDifficulty = !qbFilterDifficulty || q.difficulty === qbFilterDifficulty;
     const matchSearch = !qbSearch || q.content?.toLowerCase()?.includes(qbSearch.toLowerCase());
-    
-    // Auto-filter type based on target part
-    let matchType = true;
-    if (targetPartForQuestionBank === 'part1') matchType = q.type === 'multiple_choice';
-    if (targetPartForQuestionBank === 'part2') matchType = q.type === 'true_false';
-    if (targetPartForQuestionBank === 'part3') matchType = q.type === 'short_answer';
-    if (targetPartForQuestionBank === 'part4') matchType = q.type === 'essay';
+    const matchType = !qbFilterType || q.type === qbFilterType;
 
     return matchSubject && matchTopic && matchDifficulty && matchSearch && matchType;
   });
@@ -350,10 +442,8 @@ export const AssignmentManagement = () => {
       dueDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
       classId: lesson.classId || '',
       studentIds: [],
-      part1: '',
-      part2: '',
-      part3: '',
-      part4: ''
+      questions: [],
+      attachments: []
     });
     
     if (lesson.classId) {
@@ -363,6 +453,7 @@ export const AssignmentManagement = () => {
       setClassStudents([]);
     }
     setSelectAllStudents(false);
+    setAssignmentModalTab('info');
     
     setIsAssignmentModalOpen(true);
   };
@@ -381,10 +472,8 @@ export const AssignmentManagement = () => {
       studentIds: assignmentFormData.studentIds,
       subjectId: topics.find(t => t.id === selectedLessonForAssignment.topicId)?.subjectId,
       topicId: selectedLessonForAssignment.topicId,
-      part1: assignmentFormData.part1,
-      part2: assignmentFormData.part2,
-      part3: assignmentFormData.part3,
-      part4: assignmentFormData.part4
+      questions: assignmentFormData.questions,
+      attachments: assignmentFormData.attachments
     };
 
     await dataProvider.create('assignments', assignmentData);
@@ -411,6 +500,56 @@ export const AssignmentManagement = () => {
     setStudents(allUsers);
 
     setIsGradingModalOpen(true);
+  };
+
+  const handleAutoGrade = async (submission: Submission, assignment: Assignment) => {
+    if (!assignment.questions || assignment.questions.length === 0) return;
+    
+    let parsedAnswers: Record<string, any> = {};
+    try {
+      parsedAnswers = submission.answers ? JSON.parse(submission.answers) : {};
+    } catch (e) {
+      console.error("Error parsing answers:", e);
+      return;
+    }
+
+    let totalScore = 0;
+    let maxScore = 0;
+
+    assignment.questions.forEach(q => {
+      const questionMaxPoints = q.type === 'true_false' ? 1.0 : (q.points || 0);
+      maxScore += questionMaxPoints;
+      
+      if (q.type === 'multiple_choice') {
+        if (parsedAnswers[q.id] === q.correctAnswer) {
+          totalScore += questionMaxPoints;
+        }
+      } else if (q.type === 'true_false' && q.subQuestions) {
+        let correctCount = 0;
+        const studentAns = parsedAnswers[q.id] || {};
+        q.subQuestions.forEach(sq => {
+          if (studentAns[sq.id] === sq.correctAnswer) {
+            correctCount++;
+          }
+        });
+        if (correctCount > 0) {
+          totalScore += (correctCount / q.subQuestions.length) * questionMaxPoints;
+        }
+      } else if (q.type === 'short_answer') {
+        if (parsedAnswers[q.id] && q.correctAnswer && 
+            parsedAnswers[q.id].toString().trim().toLowerCase() === q.correctAnswer.toString().trim().toLowerCase()) {
+          totalScore += questionMaxPoints;
+        }
+      }
+    });
+
+    const finalScore = Number(((totalScore / maxScore) * 10).toFixed(2));
+    
+    setEditingSubmissionId(submission.id);
+    setGradingData({ 
+      score: finalScore.toString(), 
+      feedback: `[Chấm tự động] Điểm trắc nghiệm: ${finalScore}/10.\n${submission.feedback || ''}` 
+    });
   };
 
   const handleSaveGrade = async (submissionId: string) => {
@@ -459,19 +598,17 @@ export const AssignmentManagement = () => {
       topicId: '',
       studentIds: [],
       attachments: [],
-      questions: [],
-      part1: '',
-      part2: '',
-      part3: '',
-      part4: ''
+      questions: []
     });
     setClassStudents([]);
     setSelectAllStudents(false);
+    setIndependentAssignmentModalTab('info');
     setIsIndependentAssignmentModalOpen(true);
   };
 
   const handleEditIndependentAssignment = (assignment: Assignment) => {
     setEditingIndependentAssignmentId(assignment.id);
+    setIndependentAssignmentModalTab('info');
     
     let parsedStudentIds = assignment.studentIds || [];
     if (typeof parsedStudentIds === 'string') {
@@ -501,11 +638,7 @@ export const AssignmentManagement = () => {
       topicId: assignment.topicId || '',
       studentIds: parsedStudentIds,
       attachments: parsedAttachments,
-      questions: assignment.questions || [],
-      part1: assignment.part1 || '',
-      part2: assignment.part2 || '',
-      part3: assignment.part3 || '',
-      part4: assignment.part4 || ''
+      questions: assignment.questions || []
     });
     
     if (assignment.classId) {
@@ -596,8 +729,8 @@ export const AssignmentManagement = () => {
 
   const handleSubmitIndependentAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!independentAssignmentFormData.title || (!independentAssignmentFormData.description && !independentAssignmentFormData.part1 && !independentAssignmentFormData.part2 && !independentAssignmentFormData.part3 && !independentAssignmentFormData.part4)) {
-      alert('Vui lòng nhập tên bài tập và nội dung bài tập');
+    if (!independentAssignmentFormData.title || (!independentAssignmentFormData.description && independentAssignmentFormData.questions.length === 0)) {
+      alert('Vui lòng nhập tên bài tập và nội dung bài tập (mô tả hoặc câu hỏi)');
       return;
     }
 
@@ -611,11 +744,7 @@ export const AssignmentManagement = () => {
       topicId: independentAssignmentFormData.topicId,
       studentIds: independentAssignmentFormData.studentIds,
       attachments: independentAssignmentFormData.attachments,
-      questions: independentAssignmentFormData.questions,
-      part1: independentAssignmentFormData.part1,
-      part2: independentAssignmentFormData.part2,
-      part3: independentAssignmentFormData.part3,
-      part4: independentAssignmentFormData.part4
+      questions: independentAssignmentFormData.questions
     };
 
     if (editingIndependentAssignmentId) {
@@ -650,6 +779,34 @@ export const AssignmentManagement = () => {
     return true;
   });
 
+  const isOverdue = (dueDate: string) => {
+    return new Date(dueDate).getTime() < new Date().getTime();
+  };
+
+  const filteredAssignments = assignments.filter(assignment => {
+    // Search filter
+    if (searchTitle && !assignment.title?.toLowerCase()?.includes(searchTitle.toLowerCase())) return false;
+    
+    // Basic filters
+    if (filterGrade && String(assignment.grade) !== String(filterGrade)) return false;
+    if (filterClassId && String(assignment.classId) !== String(filterClassId)) return false;
+    if (filterSubjectId && assignment.subjectId !== filterSubjectId) return false;
+    if (filterTopicId && assignment.topicId !== filterTopicId) return false;
+
+    // Status filters
+    const overdue = isOverdue(assignment.dueDate);
+    const assignmentSubmissions = allSubmissions.filter(s => s.assignmentId === assignment.id);
+    const hasSubmissions = assignmentSubmissions.length > 0;
+    const allGraded = hasSubmissions && assignmentSubmissions.every(s => s.score !== undefined && s.score !== null);
+
+    if (filterAssignmentStatus === 'all') return true;
+    if (filterAssignmentStatus === 'pending') return !hasSubmissions && !overdue;
+    if (filterAssignmentStatus === 'submitted') return hasSubmissions && !allGraded;
+    if (filterAssignmentStatus === 'graded') return allGraded;
+    if (filterAssignmentStatus === 'overdue') return overdue;
+    return true;
+  });
+
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -669,9 +826,87 @@ export const AssignmentManagement = () => {
         </div>
       </div>
 
-      
-      
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 space-y-4">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Tìm kiếm bài tập..."
+                value={searchTitle}
+                onChange={(e) => setSearchTitle(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+          </div>
+          <select
+            value={filterGrade}
+            onChange={(e) => setFilterGrade(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">Tất cả khối</option>
+            <option value="10">Khối 10</option>
+            <option value="11">Khối 11</option>
+            <option value="12">Khối 12</option>
+          </select>
+          <select
+            value={filterClassId}
+            onChange={(e) => setFilterClassId(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">Tất cả lớp</option>
+            {classes.filter(c => !filterGrade || c.grade.toString() === filterGrade).map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select
+            value={filterSubjectId}
+            onChange={(e) => setFilterSubjectId(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">Tất cả môn học</option>
+            {subjects.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50">
+          <button
+            onClick={() => setFilterAssignmentStatus('all')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterAssignmentStatus === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Tất cả
+          </button>
+          <button
+            onClick={() => setFilterAssignmentStatus('pending')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterAssignmentStatus === 'pending' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Chưa nộp
+          </button>
+          <button
+            onClick={() => setFilterAssignmentStatus('submitted')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterAssignmentStatus === 'submitted' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Đã nộp
+          </button>
+          <button
+            onClick={() => setFilterAssignmentStatus('graded')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterAssignmentStatus === 'graded' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Đã chấm
+          </button>
+          <button
+            onClick={() => setFilterAssignmentStatus('overdue')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterAssignmentStatus === 'overdue' ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Quá hạn
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
@@ -682,7 +917,7 @@ export const AssignmentManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {assignments.map(assignment => {
+              {filteredAssignments.map(assignment => {
                 const cls = classes.find(c => String(c.id) === String(assignment.classId));
                 return (
                   <tr key={assignment.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
@@ -740,10 +975,10 @@ export const AssignmentManagement = () => {
                   </tr>
                 );
               })}
-              {assignments.length === 0 && (
+              {filteredAssignments.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-8 text-center text-gray-500">
-                    Chưa có bài tập độc lập nào.
+                    Chưa có bài tập nào phù hợp với bộ lọc.
                   </td>
                 </tr>
               )}
@@ -854,14 +1089,15 @@ export const AssignmentManagement = () => {
                 <span>Tạo bằng AI</span>
               </button>
             </div>
-            <textarea
-              required
-              rows={4}
-              value={formData.content}
-              onChange={e => setFormData({...formData, content: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"
-              placeholder="Nhập nội dung bài học hoặc yêu cầu cần đạt..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
+              <ReactQuill 
+                theme="snow"
+                value={formData.content}
+                onChange={content => setFormData({...formData, content})}
+                className="h-40 mb-12"
+                placeholder="Nhập nội dung bài học hoặc yêu cầu cần đạt..."
+              />
+            </div>
           </div>
 
           <div>
@@ -989,13 +1225,15 @@ export const AssignmentManagement = () => {
                   </div>
 
                   {block.type === 'text' && (
-                    <textarea
-                      value={block.data.content}
-                      onChange={e => updateBlockData(block.id, { content: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="Nhập nội dung văn bản..."
-                      rows={3}
-                    />
+                    <div className="bg-white rounded-lg overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
+                      <ReactQuill 
+                        theme="snow"
+                        value={block.data.content}
+                        onChange={content => updateBlockData(block.id, { content })}
+                        className="h-32 mb-12"
+                        placeholder="Nhập nội dung văn bản..."
+                      />
+                    </div>
                   )}
 
                   {block.type === 'video' && (
@@ -1221,32 +1459,107 @@ export const AssignmentManagement = () => {
                                         <span className="px-2 py-1 bg-emerald-100 text-emerald-700 font-bold rounded-lg text-sm">
                                           {submission.score}/10
                                         </span>
+                                        <div className="flex gap-2 mt-1">
+                                          {assignment.questions && assignment.questions.length > 0 && submission.answers && (
+                                            <button 
+                                              onClick={() => handleAutoGrade(submission, assignment)}
+                                              className="text-xs text-emerald-600 hover:underline"
+                                            >
+                                              Chấm lại tự động
+                                            </button>
+                                          )}
+                                          <button 
+                                            onClick={() => {
+                                              setEditingSubmissionId(submission.id);
+                                              setGradingData({ score: submission.score?.toString() || '', feedback: submission.feedback || '' });
+                                            }}
+                                            className="text-xs text-indigo-600 hover:underline"
+                                          >
+                                            Sửa điểm
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex gap-2">
+                                        {assignment.questions && assignment.questions.length > 0 && submission.answers && (
+                                          <button 
+                                            onClick={() => handleAutoGrade(submission, assignment)}
+                                            className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-medium rounded-lg text-sm hover:bg-emerald-100 transition-colors"
+                                          >
+                                            Chấm tự động
+                                          </button>
+                                        )}
                                         <button 
                                           onClick={() => {
                                             setEditingSubmissionId(submission.id);
-                                            setGradingData({ score: submission.score?.toString() || '', feedback: submission.feedback || '' });
+                                            setGradingData({ score: '', feedback: submission.feedback || '' });
                                           }}
-                                          className="text-xs text-indigo-600 hover:underline mt-1"
+                                          className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-medium rounded-lg text-sm hover:bg-indigo-100 transition-colors"
                                         >
-                                          Sửa điểm
+                                          Chấm điểm
                                         </button>
                                       </div>
-                                    ) : (
-                                      <button 
-                                        onClick={() => {
-                                          setEditingSubmissionId(submission.id);
-                                          setGradingData({ score: '', feedback: submission.feedback || '' });
-                                        }}
-                                        className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-medium rounded-lg text-sm hover:bg-indigo-100 transition-colors"
-                                      >
-                                        Chấm điểm
-                                      </button>
                                     )}
                                   </div>
                                 )}
                               </div>
                               
                               <div className="space-y-4 mb-4">
+                                {submission.answers && assignment.questions && assignment.questions.length > 0 && (
+                                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <p className="text-[10px] font-bold text-indigo-600 uppercase mb-2">Phần Trắc nghiệm (Tự động chấm)</p>
+                                    <div className="space-y-3">
+                                      {assignment.questions.map((q, idx) => {
+                                        let parsedAnswers: Record<string, any> = {};
+                                        try {
+                                          parsedAnswers = JSON.parse(submission.answers || '{}');
+                                        } catch (e) {}
+                                        
+                                        const studentAns = parsedAnswers[q.id];
+                                        
+                                        return (
+                                          <div key={idx} className="text-sm">
+                                            <p className="font-medium text-gray-800">Câu {idx + 1}: {q.content}</p>
+                                            {q.type === 'multiple_choice' && (
+                                              <div className="mt-1 flex items-center gap-2">
+                                                <span className="text-gray-600">Học sinh chọn:</span>
+                                                <span className={`font-medium ${studentAns === q.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                  {studentAns || 'Chưa trả lời'}
+                                                </span>
+                                                <span className="text-gray-400 text-xs">(Đáp án: {q.correctAnswer})</span>
+                                              </div>
+                                            )}
+                                            {q.type === 'true_false' && q.subQuestions && (
+                                              <div className="mt-1 pl-4 space-y-1">
+                                                {q.subQuestions.map((sq: any, i: number) => {
+                                                  const sqAns = studentAns ? studentAns[sq.id] : undefined;
+                                                  return (
+                                                    <div key={i} className="flex items-center gap-2">
+                                                      <span className="text-gray-600">{sq.id})</span>
+                                                      <span className={`font-medium ${sqAns === sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        {sqAns !== undefined ? (sqAns ? 'Đúng' : 'Sai') : 'Chưa trả lời'}
+                                                      </span>
+                                                      <span className="text-gray-400 text-xs">(Đáp án: {sq.correctAnswer ? 'Đúng' : 'Sai'})</span>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                            {q.type === 'short_answer' && (
+                                              <div className="mt-1 flex items-center gap-2">
+                                                <span className="text-gray-600">Học sinh chọn:</span>
+                                                <span className={`font-medium ${studentAns?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase() ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                  {studentAns || 'Chưa trả lời'}
+                                                </span>
+                                                <span className="text-gray-400 text-xs">(Đáp án: {q.correctAnswer})</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                                 {submission.part1Content && (
                                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                     <p className="text-[10px] font-bold text-indigo-600 uppercase mb-1">Phần I: Trắc nghiệm</p>
@@ -1298,7 +1611,7 @@ export const AssignmentManagement = () => {
                                     <label className="text-sm font-bold text-gray-700">Điểm số (0-10):</label>
                                     <input 
                                       type="number" 
-                                      min="0" max="10" step="0.5"
+                                      min="0" max="10" step="0.01"
                                       value={gradingData.score}
                                       onChange={e => setGradingData({...gradingData, score: e.target.value})}
                                       className="w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -1356,196 +1669,296 @@ export const AssignmentManagement = () => {
         title="Giao bài tập từ bài giảng"
         size="lg"
       >
+        <div className="flex border-b border-gray-200 mb-6">
+          <button
+            type="button"
+            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${assignmentModalTab === 'info' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setAssignmentModalTab('info')}
+          >
+            Thông tin chung
+          </button>
+          <button
+            type="button"
+            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${assignmentModalTab === 'questions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setAssignmentModalTab('questions')}
+          >
+            Nội dung câu hỏi
+          </button>
+        </div>
+
         <form onSubmit={handleSubmitAssignment} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề bài tập</label>
-              <input
-                type="text"
-                required
-                value={assignmentFormData.title}
-                onChange={e => setAssignmentFormData({...assignmentFormData, title: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp</label>
-              <input
-                type="date"
-                required
-                value={assignmentFormData.dueDate}
-                onChange={e => setAssignmentFormData({...assignmentFormData, dueDate: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú / Hướng dẫn</label>
-            <textarea
-              value={assignmentFormData.description}
-              onChange={e => setAssignmentFormData({...assignmentFormData, description: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              rows={2}
-              placeholder="Nhập hướng dẫn cho học sinh..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lớp (Tùy chọn)</label>
-            <select
-              value={assignmentFormData.classId}
-              onChange={e => {
-                const classId = e.target.value;
-                setAssignmentFormData(prev => ({ ...prev, classId, studentIds: [] }));
-                setSelectAllStudents(false);
-                if (classId) {
-                  const studentsInClass = students.filter(s => String(s.classId) === String(classId));
-                  setClassStudents(studentsInClass);
-                } else {
-                  setClassStudents([]);
-                }
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">-- Chọn lớp để giao bài --</option>
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {classStudents.length > 0 && (
-            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-medium text-gray-700">Chọn học sinh cần giao</label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
+          {assignmentModalTab === 'info' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề bài tập</label>
                   <input
-                    type="checkbox"
-                    checked={selectAllStudents}
-                    onChange={handleToggleAllLessonStudents}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                    type="text"
+                    required
+                    value={assignmentFormData.title}
+                    onChange={e => setAssignmentFormData({...assignmentFormData, title: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
-                  <span className="font-medium">Chọn tất cả</span>
-                </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp</label>
+                  <input
+                    type="date"
+                    required
+                    value={assignmentFormData.dueDate}
+                    onChange={e => setAssignmentFormData({...assignmentFormData, dueDate: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
               </div>
-              <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-2">
-                {classStudents.map(student => (
-                  <label key={student.id} className="flex items-center gap-2 text-sm p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú / Hướng dẫn</label>
+                <textarea
+                  value={assignmentFormData.description}
+                  onChange={e => setAssignmentFormData({...assignmentFormData, description: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  rows={2}
+                  placeholder="Nhập hướng dẫn cho học sinh..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tệp đính kèm</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
                     <input
-                      type="checkbox"
-                      checked={assignmentFormData.studentIds.includes(student.id)}
-                      onChange={() => handleToggleLessonStudent(student.id)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []) as File[];
+                        files.forEach(file => {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const base64 = reader.result as string;
+                            setAssignmentFormData(prev => ({
+                              ...prev,
+                              attachments: [...(prev.attachments || []), base64]
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        });
+                      }}
                     />
-                    <span>{student.fullName}</span>
+                    <Upload size={20} className="text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Tải tệp lên</span>
                   </label>
-                ))}
+                  <span className="text-sm text-gray-500">
+                    {(assignmentFormData.attachments || []).length} tệp đã chọn
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lớp (Tùy chọn)</label>
+                <select
+                  value={assignmentFormData.classId}
+                  onChange={e => {
+                    const classId = e.target.value;
+                    setAssignmentFormData(prev => ({ ...prev, classId, studentIds: [] }));
+                    setSelectAllStudents(false);
+                    if (classId) {
+                      const studentsInClass = students.filter(s => String(s.classId) === String(classId));
+                      setClassStudents(studentsInClass);
+                    } else {
+                      setClassStudents([]);
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">-- Chọn lớp để giao bài --</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {classStudents.length > 0 && (
+                <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-gray-700">Chọn học sinh cần giao</label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectAllStudents}
+                        onChange={handleToggleAllLessonStudents}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="font-medium">Chọn tất cả</span>
+                    </label>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-2">
+                    {classStudents.map(student => (
+                      <label key={student.id} className="flex items-center gap-2 text-sm p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={assignmentFormData.studentIds.includes(student.id)}
+                          onChange={() => handleToggleLessonStudent(student.id)}
+                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>{student.fullName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {assignmentModalTab === 'questions' && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h4 className="font-semibold text-gray-900">Thêm câu hỏi mới</h4>
+                  <button 
+                    type="button"
+                    onClick={() => handleOpenQuestionBankModal('lesson')}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <Search size={16} />
+                    Chọn từ ngân hàng
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenQuestionModal('lesson', undefined, 'multiple_choice')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-2 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <CheckCircle size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Trắc nghiệm</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenQuestionModal('lesson', undefined, 'true_false')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-amber-500 hover:bg-amber-50 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mb-2 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                      <HelpCircle size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Đúng/Sai</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenQuestionModal('lesson', undefined, 'short_answer')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-2 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                      <Edit2 size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Trả lời ngắn</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenQuestionModal('lesson', undefined, 'essay')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-rose-500 hover:bg-rose-50 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-2 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                      <FileText size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Tự luận</span>
+                  </button>
+                </div>
+
+                <div className="flex justify-between items-center border-b pb-2 pt-4">
+                  <h4 className="font-semibold text-gray-900">Danh sách câu hỏi ({assignmentFormData.questions?.length || 0})</h4>
+                </div>
+
+                {assignmentFormData.questions && assignmentFormData.questions.length > 0 ? (
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                    {assignmentFormData.questions.map((q, index) => (
+                      <div key={`${q.id || 'q'}-${index}`} className="p-3 border border-gray-200 rounded-xl bg-gray-50 relative group">
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            type="button"
+                            onClick={() => handleOpenQuestionModal('lesson', index)}
+                            className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => removeQuestion('lesson', index)}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2 text-sm mb-1">
+                          <span className="font-medium">Câu {index + 1}:</span>
+                          <span className="text-gray-600">
+                            {q.type === 'multiple_choice' ? 'Trắc nghiệm' : 
+                             q.type === 'true_false' ? 'Đúng/Sai' : 
+                             q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
+                          </span>
+                          <div className="ml-auto flex items-center gap-2">
+                            {q.type === 'true_false' ? (
+                              <span className="text-indigo-600 font-medium">1 điểm</span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={q.points || 0}
+                                  onChange={(e) => updateQuestionPoints('lesson', index, Number(e.target.value))}
+                                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm text-gray-600">điểm</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-gray-900 text-sm mb-2">{q.content}</p>
+                        {q.type === 'multiple_choice' && (
+                          <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
+                            {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
+                              <li key={i} className={opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}>
+                                {opt}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {q.type === 'true_false' && (
+                          <div className="mt-2 space-y-1">
+                            {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
+                              <div key={i} className="text-sm flex items-start gap-2">
+                                <span className="font-medium text-gray-700">{sq.id})</span>
+                                <span className="text-gray-600 flex-1">{sq.content}</span>
+                                <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {sq.correctAnswer ? 'Đúng' : 'Sai'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {q.type === 'short_answer' && (
+                          <div className="text-sm text-emerald-600 font-medium mt-1">
+                            Đáp án: {q.correctAnswer}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-gray-500">
+                    Chưa có câu hỏi nào. Hãy thêm câu hỏi mới.
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          <div className="space-y-6 border-t pt-6">
-            <h3 className="text-lg font-bold text-gray-900">Nội dung câu hỏi bài tập</h3>
-            
-            {/* Part I */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần I: Bài tập Trắc nghiệm</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenQuestionBankModal('lesson', 'part1')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
-                  >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
-                  </button>
-                </div>
-              </div>
-              <textarea
-                value={assignmentFormData.part1}
-                onChange={e => setAssignmentFormData({...assignmentFormData, part1: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi trắc nghiệm..."
-              />
-            </div>
-
-            {/* Part II */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần II: Bài tập Trắc nghiệm Đúng/Sai</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenQuestionBankModal('lesson', 'part2')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
-                  >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
-                  </button>
-                </div>
-              </div>
-              <textarea
-                value={assignmentFormData.part2}
-                onChange={e => setAssignmentFormData({...assignmentFormData, part2: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi đúng/sai..."
-              />
-            </div>
-
-            {/* Part III */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần III: Bài tập Trả lời ngắn</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenQuestionBankModal('lesson', 'part3')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
-                  >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
-                  </button>
-                </div>
-              </div>
-              <textarea
-                value={assignmentFormData.part3}
-                onChange={e => setAssignmentFormData({...assignmentFormData, part3: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi trả lời ngắn..."
-              />
-            </div>
-
-            {/* Part IV */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần IV: Bài tập Tự luận</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenQuestionBankModal('lesson', 'part4')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
-                  >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
-                  </button>
-                </div>
-              </div>
-              <textarea
-                value={assignmentFormData.part4}
-                onChange={e => setAssignmentFormData({...assignmentFormData, part4: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi tự luận..."
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t mt-6">
             <button
               type="button"
               onClick={() => setIsAssignmentModalOpen(false)}
@@ -1569,257 +1982,323 @@ export const AssignmentManagement = () => {
         title="Giao bài tập"
         size="lg"
       >
+        <div className="flex border-b border-gray-200 mb-6">
+          <button
+            type="button"
+            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${independentAssignmentModalTab === 'info' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setIndependentAssignmentModalTab('info')}
+          >
+            Thông tin chung
+          </button>
+          <button
+            type="button"
+            className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors ${independentAssignmentModalTab === 'questions' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setIndependentAssignmentModalTab('questions')}
+          >
+            Nội dung câu hỏi
+          </button>
+        </div>
+
         <form onSubmit={handleSubmitIndependentAssignment} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tên bài học / Bài tập</label>
-              <input
-                type="text"
-                required
-                value={independentAssignmentFormData.title}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, title: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                placeholder="Nhập tên bài tập..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp</label>
-              <input
-                type="date"
-                required
-                value={independentAssignmentFormData.dueDate}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, dueDate: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú / Hướng dẫn chung</label>
-            <textarea
-              value={independentAssignmentFormData.description}
-              onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, description: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              rows={2}
-              placeholder="Nhập hướng dẫn chung cho bài tập (nếu có)..."
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
-              <select
-                value={independentAssignmentFormData.grade}
-                onChange={e => {
-                  setIndependentAssignmentFormData({...independentAssignmentFormData, grade: e.target.value, classId: '', studentIds: []});
-                  setClassStudents([]);
-                  setSelectAllStudents(false);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="10">Khối 10</option>
-                <option value="11">Khối 11</option>
-                <option value="12">Khối 12</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label>
-              <select
-                required
-                value={independentAssignmentFormData.classId}
-                onChange={e => handleClassChangeForAssignment(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="">Chọn lớp</option>
-                {classes.filter(c => c.grade.toString() === independentAssignmentFormData.grade).map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Môn học</label>
-              <select
-                value={independentAssignmentFormData.subjectId}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, subjectId: e.target.value, topicId: ''})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="">Chọn môn học</option>
-                {subjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {independentAssignmentFormData.subjectId && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
-              <select
-                value={independentAssignmentFormData.topicId}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, topicId: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="">Chọn chủ đề</option>
-                {topics.filter(t => t.subjectId === independentAssignmentFormData.subjectId).map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {classStudents.length > 0 && (
-            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-medium text-gray-700">Chọn học sinh cần giao</label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
+          {independentAssignmentModalTab === 'info' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên bài học / Bài tập</label>
                   <input
-                    type="checkbox"
-                    checked={selectAllStudents}
-                    onChange={handleToggleAllStudents}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                    type="text"
+                    required
+                    value={independentAssignmentFormData.title}
+                    onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, title: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="Nhập tên bài tập..."
                   />
-                  <span className="font-medium">Chọn tất cả</span>
-                </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hạn nộp</label>
+                  <input
+                    type="date"
+                    required
+                    value={independentAssignmentFormData.dueDate}
+                    onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, dueDate: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
               </div>
-              <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-2">
-                {classStudents.map(student => (
-                  <label key={student.id} className="flex items-center gap-2 text-sm p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={independentAssignmentFormData.studentIds.includes(student.id)}
-                      onChange={() => handleToggleStudent(student.id)}
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>{student.fullName}</span>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú / Hướng dẫn chung</label>
+                <textarea
+                  value={independentAssignmentFormData.description}
+                  onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, description: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  rows={2}
+                  placeholder="Nhập hướng dẫn chung cho bài tập (nếu có)..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
+                  <select
+                    value={independentAssignmentFormData.grade}
+                    onChange={e => {
+                      setIndependentAssignmentFormData({...independentAssignmentFormData, grade: e.target.value, classId: '', studentIds: []});
+                      setClassStudents([]);
+                      setSelectAllStudents(false);
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="10">Khối 10</option>
+                    <option value="11">Khối 11</option>
+                    <option value="12">Khối 12</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Lớp</label>
+                  <select
+                    required
+                    value={independentAssignmentFormData.classId}
+                    onChange={e => handleClassChangeForAssignment(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">Chọn lớp</option>
+                    {classes.filter(c => c.grade.toString() === independentAssignmentFormData.grade).map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Môn học</label>
+                  <select
+                    value={independentAssignmentFormData.subjectId}
+                    onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, subjectId: e.target.value, topicId: ''})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">Chọn môn học</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {independentAssignmentFormData.subjectId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
+                  <select
+                    value={independentAssignmentFormData.topicId}
+                    onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, topicId: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">Chọn chủ đề</option>
+                    {topics.filter(t => t.subjectId === independentAssignmentFormData.subjectId).map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {classStudents.length > 0 && (
+                <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium text-gray-700">Chọn học sinh cần giao</label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectAllStudents}
+                        onChange={handleToggleAllStudents}
+                        className="rounded text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="font-medium">Chọn tất cả</span>
+                    </label>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-2">
+                    {classStudents.map(student => (
+                      <label key={student.id} className="flex items-center gap-2 text-sm p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={independentAssignmentFormData.studentIds.includes(student.id)}
+                          onChange={() => handleToggleStudent(student.id)}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>{student.fullName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Đính kèm tài liệu hỗ trợ (Hình ảnh, Word, PDF...)</label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="file"
+                    id="independent-file-upload"
+                    className="hidden"
+                    onChange={handleIndependentFileChange}
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  />
+                  <label
+                    htmlFor="independent-file-upload"
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <Upload size={20} className="text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Tải tệp lên</span>
                   </label>
-                ))}
+                  <span className="text-sm text-gray-500">
+                    {independentAssignmentFormData.attachments.length} tệp đã chọn
+                  </span>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="space-y-6 border-t pt-6">
-            <h3 className="text-lg font-bold text-gray-900">Cấu trúc nội dung bài tập</h3>
-            
-            {/* Part I */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần I: Bài tập Trắc nghiệm</label>
-                <div className="flex gap-2">
+          {independentAssignmentModalTab === 'questions' && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h4 className="font-semibold text-gray-900">Thêm câu hỏi mới</h4>
+                  <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => handleOpenQuestionBankModal('independent')}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                      <Search size={16} />
+                      Chọn từ ngân hàng
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <button
                     type="button"
-                    onClick={() => handleOpenQuestionBankModal('independent', 'part1')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
+                    onClick={() => handleOpenQuestionModal('independent', undefined, 'multiple_choice')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
                   >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-2 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                      <CheckCircle size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Trắc nghiệm</span>
                   </button>
-                </div>
-              </div>
-              <textarea
-                value={independentAssignmentFormData.part1}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, part1: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi trắc nghiệm..."
-              />
-            </div>
-
-            {/* Part II */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần II: Bài tập Trắc nghiệm Đúng/Sai</label>
-                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => handleOpenQuestionBankModal('independent', 'part2')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
+                    onClick={() => handleOpenQuestionModal('independent', undefined, 'true_false')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-amber-500 hover:bg-amber-50 transition-all group"
                   >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
+                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mb-2 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                      <HelpCircle size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Đúng/Sai</span>
                   </button>
-                </div>
-              </div>
-              <textarea
-                value={independentAssignmentFormData.part2}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, part2: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi đúng/sai..."
-              />
-            </div>
-
-            {/* Part III */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần III: Bài tập Trả lời ngắn</label>
-                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => handleOpenQuestionBankModal('independent', 'part3')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
+                    onClick={() => handleOpenQuestionModal('independent', undefined, 'short_answer')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
                   >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-2 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <Edit2 size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Trả lời ngắn</span>
                   </button>
-                </div>
-              </div>
-              <textarea
-                value={independentAssignmentFormData.part3}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, part3: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi trả lời ngắn..."
-              />
-            </div>
-
-            {/* Part IV */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-gray-700">Phần IV: Bài tập Tự luận</label>
-                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => handleOpenQuestionBankModal('independent', 'part4')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors text-xs font-medium"
+                    onClick={() => handleOpenQuestionModal('independent', undefined, 'essay')}
+                    className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl hover:border-rose-500 hover:bg-rose-50 transition-all group"
                   >
-                    <BookOpen size={14} />
-                    <span>Chọn từ Ngân hàng</span>
+                    <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-2 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                      <FileText size={20} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">Tự luận</span>
                   </button>
                 </div>
-              </div>
-              <textarea
-                value={independentAssignmentFormData.part4}
-                onChange={e => setIndependentAssignmentFormData({...independentAssignmentFormData, part4: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-                rows={4}
-                placeholder="Nhập danh sách câu hỏi tự luận..."
-              />
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Đính kèm tài liệu hỗ trợ (Hình ảnh, Word, PDF...)</label>
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                id="independent-file-upload"
-                className="hidden"
-                onChange={handleIndependentFileChange}
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              />
-              <label
-                htmlFor="independent-file-upload"
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <Upload size={20} className="text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Tải tệp lên</span>
-              </label>
-              <span className="text-sm text-gray-500">
-                {independentAssignmentFormData.attachments.length} tệp đã chọn
-              </span>
+                <div className="flex justify-between items-center border-b pb-2 pt-4">
+                  <h4 className="font-semibold text-gray-900">Danh sách câu hỏi ({independentAssignmentFormData.questions?.length || 0})</h4>
+                </div>
+
+                {independentAssignmentFormData.questions && independentAssignmentFormData.questions.length > 0 ? (
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                    {independentAssignmentFormData.questions.map((q, index) => (
+                      <div key={`${q.id || 'q'}-${index}`} className="p-3 border border-gray-200 rounded-xl bg-gray-50 relative group">
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            type="button"
+                            onClick={() => handleOpenQuestionModal('independent', index)}
+                            className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => removeQuestion('independent', index)}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2 text-sm mb-1">
+                          <span className="font-medium">Câu {index + 1}:</span>
+                          <span className="text-gray-600">
+                            {q.type === 'multiple_choice' ? 'Trắc nghiệm' : 
+                             q.type === 'true_false' ? 'Đúng/Sai' : 
+                             q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
+                          </span>
+                          <div className="ml-auto flex items-center gap-2">
+                            {q.type === 'true_false' ? (
+                              <span className="text-indigo-600 font-medium">1 điểm</span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={q.points || 0}
+                                  onChange={(e) => updateQuestionPoints('independent', index, Number(e.target.value))}
+                                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm text-gray-600">điểm</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-gray-900 text-sm mb-2">{q.content}</p>
+                        {q.type === 'multiple_choice' && (
+                          <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
+                            {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
+                              <li key={i} className={opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}>
+                                {opt}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {q.type === 'true_false' && (
+                          <div className="mt-2 space-y-1">
+                            {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
+                              <div key={i} className="text-sm flex items-start gap-2">
+                                <span className="font-medium text-gray-700">{sq.id})</span>
+                                <span className="text-gray-600 flex-1">{sq.content}</span>
+                                <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {sq.correctAnswer ? 'Đúng' : 'Sai'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-gray-500">
+                    Chưa có câu hỏi nào. Hãy thêm câu hỏi mới.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t mt-6">
             <button
               type="button"
               onClick={() => setIsIndependentAssignmentModalOpen(false)}
@@ -1832,6 +2311,194 @@ export const AssignmentManagement = () => {
               className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-medium"
             >
               Giao bài
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Manual Question Modal */}
+      <Modal
+        isOpen={isQuestionModalOpen}
+        onClose={() => setIsQuestionModalOpen(false)}
+        title={editingQuestionIndex !== null ? "Sửa câu hỏi" : "Thêm câu hỏi mới"}
+      >
+        <form onSubmit={handleSaveQuestion} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
+              <select 
+                value={questionForm.type}
+                onChange={e => {
+                  const type = e.target.value as QuestionType;
+                  setQuestionForm({
+                    ...questionForm, 
+                    type,
+                    options: type === 'multiple_choice' ? ['', '', '', ''] : [],
+                    correctAnswer: type === 'true_false' ? 'true' : '',
+                    subQuestions: type === 'true_false' ? [
+                      { id: 'a', content: '', difficulty: 'recognition', correctAnswer: true },
+                      { id: 'b', content: '', difficulty: 'recognition', correctAnswer: true },
+                      { id: 'c', content: '', difficulty: 'recognition', correctAnswer: true },
+                      { id: 'd', content: '', difficulty: 'recognition', correctAnswer: true }
+                    ] : []
+                  });
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="multiple_choice">Trắc nghiệm nhiều lựa chọn</option>
+                <option value="true_false">Trắc nghiệm Đúng/Sai</option>
+                <option value="short_answer">Trả lời ngắn</option>
+                <option value="essay">Tự luận</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mức độ</label>
+              <select 
+                value={questionForm.difficulty}
+                onChange={e => setQuestionForm({...questionForm, difficulty: e.target.value as any})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="recognition">Nhận biết</option>
+                <option value="understanding">Thông hiểu</option>
+                <option value="application">Vận dụng</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>
+            <textarea 
+              required
+              value={questionForm.content}
+              onChange={e => setQuestionForm({...questionForm, content: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              rows={3}
+              placeholder="Nhập nội dung câu hỏi..."
+            />
+          </div>
+
+          {questionForm.type === 'multiple_choice' && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">Các lựa chọn và đáp án đúng</label>
+              {(questionForm.options || []).map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <input 
+                    type="radio"
+                    name="correctAnswer"
+                    checked={questionForm.correctAnswer === opt && opt !== ''}
+                    onChange={() => setQuestionForm({...questionForm, correctAnswer: opt})}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <input 
+                    type="text"
+                    required
+                    value={opt}
+                    onChange={e => {
+                      const newOpts = [...(questionForm.options || [])];
+                      newOpts[idx] = e.target.value;
+                      setQuestionForm({...questionForm, options: newOpts});
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder={`Lựa chọn ${idx + 1}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {questionForm.type === 'true_false' && (
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-700">Các ý Đúng/Sai</label>
+              {(questionForm.subQuestions || []).map((sq, idx) => (
+                <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">Ý {sq.id})</span>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-1 text-sm cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name={`sq-${idx}`} 
+                          checked={sq.correctAnswer === true}
+                          onChange={() => {
+                            const newSubQs = [...(questionForm.subQuestions || [])];
+                            newSubQs[idx] = { ...sq, correctAnswer: true };
+                            setQuestionForm({ ...questionForm, subQuestions: newSubQs });
+                          }}
+                        /> Đúng
+                      </label>
+                      <label className="flex items-center gap-1 text-sm cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name={`sq-${idx}`} 
+                          checked={sq.correctAnswer === false}
+                          onChange={() => {
+                            const newSubQs = [...(questionForm.subQuestions || [])];
+                            newSubQs[idx] = { ...sq, correctAnswer: false };
+                            setQuestionForm({ ...questionForm, subQuestions: newSubQs });
+                          }}
+                        /> Sai
+                      </label>
+                    </div>
+                  </div>
+                  <input 
+                    type="text"
+                    required
+                    value={sq.content}
+                    onChange={e => {
+                      const newSubQs = [...(questionForm.subQuestions || [])];
+                      newSubQs[idx] = { ...sq, content: e.target.value };
+                      setQuestionForm({ ...questionForm, subQuestions: newSubQs });
+                    }}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                    placeholder={`Nội dung ý ${sq.id}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {questionForm.type === 'short_answer' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án đúng</label>
+              <input 
+                type="text"
+                required
+                value={questionForm.correctAnswer}
+                onChange={e => setQuestionForm({...questionForm, correctAnswer: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Nhập đáp án đúng..."
+              />
+            </div>
+          )}
+
+          {questionForm.type !== 'true_false' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Điểm số</label>
+              <input 
+                type="number"
+                required
+                min={0}
+                step={0.1}
+                value={questionForm.points}
+                onChange={e => setQuestionForm({...questionForm, points: Number(e.target.value)})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          )}
+
+          <div className="pt-4 flex justify-end gap-3 border-t">
+            <button 
+              type="button" 
+              onClick={() => setIsQuestionModalOpen(false)}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              Hủy
+            </button>
+            <button 
+              type="submit"
+              className="px-4 py-2 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors"
+            >
+              Lưu câu hỏi
             </button>
           </div>
         </form>
@@ -1886,6 +2553,31 @@ export const AssignmentManagement = () => {
               <option value="understanding">Thông hiểu</option>
               <option value="application">Vận dụng</option>
             </select>
+            <select
+              value={qbFilterType}
+              onChange={(e) => setQbFilterType(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+            >
+              <option value="">Tất cả loại</option>
+              <option value="multiple_choice">Trắc nghiệm</option>
+              <option value="true_false">Đúng/Sai</option>
+              <option value="short_answer">Trả lời ngắn</option>
+              <option value="essay">Tự luận</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setQbSearch('');
+                setQbFilterSubject('');
+                setQbFilterTopic('');
+                setQbFilterDifficulty('');
+                setQbFilterType('');
+              }}
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              title="Xóa bộ lọc"
+            >
+              <RefreshCw size={20} />
+            </button>
           </div>
 
           <div className="max-h-[60vh] overflow-y-auto border border-gray-200 rounded-xl divide-y">
@@ -1940,9 +2632,28 @@ export const AssignmentManagement = () => {
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t">
-            <span className="text-sm text-gray-600">
-              Đã chọn <span className="font-bold text-emerald-600">{selectedBankQuestions.length}</span> câu hỏi
-            </span>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={filteredBankQuestions.length > 0 && filteredBankQuestions.every(q => selectedBankQuestions.includes(q.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      const allIds = filteredBankQuestions.map(q => q.id);
+                      setSelectedBankQuestions(prev => Array.from(new Set([...prev, ...allIds])));
+                    } else {
+                      const allIds = filteredBankQuestions.map(q => q.id);
+                      setSelectedBankQuestions(prev => prev.filter(id => !allIds.includes(id)));
+                    }
+                  }}
+                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Chọn tất cả câu hỏi đang hiển thị</span>
+              </label>
+              <span className="text-sm text-gray-600 border-l pl-4">
+                Đã chọn <span className="font-bold text-emerald-600">{selectedBankQuestions.length}</span> câu hỏi
+              </span>
+            </div>
             <div className="flex gap-3">
               <button
                 type="button"

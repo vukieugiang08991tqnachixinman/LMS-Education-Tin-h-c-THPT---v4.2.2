@@ -5,6 +5,8 @@ import { dataProvider } from '../../core/provider';
 import { Lesson, Progress, Assignment, Submission, InteractiveBlock } from '../../core/types';
 import { ensureArray } from '../../core/utils/data';
 import { AITutor } from '../../components/AITutor';
+import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 export const LessonDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -100,7 +102,7 @@ export const LessonDetail = () => {
 
     // Check size (max 2MB to avoid localStorage quota issues)
     if (file.size > 2 * 1024 * 1024) {
-      alert('Vui lòng chọn file có dung lượng nhỏ hơn 2MB.');
+      toast.error('Vui lòng chọn file có dung lượng nhỏ hơn 2MB.');
       return;
     }
 
@@ -128,7 +130,7 @@ export const LessonDetail = () => {
     const fileData = submissionFiles[assignmentId];
     
     if (!content.trim() && !fileData) {
-      alert('Vui lòng nhập nội dung bài làm hoặc tải file đính kèm.');
+      toast.error('Vui lòng nhập nội dung bài làm hoặc tải file đính kèm.');
       return;
     }
 
@@ -146,10 +148,15 @@ export const LessonDetail = () => {
       await dataProvider.awardXP(user.id, 30);
       
       setSubmissions(prev => ({ ...prev, [assignmentId]: newSubmission }));
-      alert('Nộp bài thành công! Bạn nhận được 30 XP.');
+      toast.success('Nộp bài thành công! Bạn nhận được 30 XP.');
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
     } catch (error) {
       console.error("Error submitting assignment:", error);
-      alert('Có lỗi xảy ra khi nộp bài.');
+      toast.error('Có lỗi xảy ra khi nộp bài.');
     } finally {
       setIsSubmitting(prev => ({ ...prev, [assignmentId]: false }));
     }
@@ -186,10 +193,16 @@ export const LessonDetail = () => {
       // Award XP for lesson completion
       await dataProvider.awardXP(user.id, 50);
       
-      alert('Chúc mừng! Bạn đã hoàn thành bài học và nhận được 50 XP.');
+      toast.success('Chúc mừng! Bạn đã hoàn thành bài học và nhận được 50 XP.');
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899']
+      });
     } catch (error) {
       console.error("Error marking as learned:", error);
-      alert('Có lỗi xảy ra khi đánh dấu đã học.');
+      toast.error('Có lỗi xảy ra khi đánh dấu đã học.');
     } finally {
       setIsMarking(false);
     }
@@ -239,7 +252,7 @@ export const LessonDetail = () => {
     
     const answer = essayAnswers[questionId];
     if (!answer || !answer.trim()) {
-      alert('Vui lòng nhập câu trả lời.');
+      toast.error('Vui lòng nhập câu trả lời.');
       return;
     }
 
@@ -261,10 +274,10 @@ export const LessonDetail = () => {
         setProgress(created);
       }
       await dataProvider.awardXP(user.id, 10);
-      alert('Đã lưu câu trả lời tự luận! Bạn nhận được 10 XP.');
+      toast.success('Đã lưu câu trả lời tự luận! Bạn nhận được 10 XP.');
     } catch (error) {
       console.error("Error saving essay answer:", error);
-      alert('Có lỗi xảy ra khi lưu câu trả lời.');
+      toast.error('Có lỗi xảy ra khi lưu câu trả lời.');
     } finally {
       setIsSubmittingEssay(prev => ({ ...prev, [questionId]: false }));
     }
@@ -600,6 +613,8 @@ export const LessonDetail = () => {
     );
   }
 
+  const isOverdue = lesson.dueDate && !progress?.completed && new Date(lesson.dueDate) < new Date();
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <button 
@@ -620,12 +635,24 @@ export const LessonDetail = () => {
                 <span className="font-medium">Bài giảng</span>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">{lesson.title}</h1>
+              {lesson.dueDate && !progress?.completed && (
+                <div className={`flex items-center gap-1 mt-2 text-sm font-medium ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>
+                  <Clock size={16} />
+                  <span>Hạn hoàn thành: {new Date(lesson.dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                  {isOverdue && <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-md text-xs uppercase tracking-wider">Quá hạn</span>}
+                </div>
+              )}
             </div>
             
             {progress?.completed ? (
               <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-medium">
                 <CheckCircle size={20} />
                 <span>Đã hoàn thành</span>
+              </div>
+            ) : isOverdue ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-xl font-medium">
+                <AlertCircle size={20} />
+                <span>Quá hạn</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl font-medium">

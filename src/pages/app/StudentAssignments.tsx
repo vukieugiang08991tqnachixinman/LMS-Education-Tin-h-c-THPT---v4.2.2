@@ -7,6 +7,8 @@ import { Modal } from '../../components/Modal';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { GoogleGenAI, Type } from "@google/genai";
+import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 export const StudentAssignments = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -23,6 +25,7 @@ export const StudentAssignments = () => {
   const [part2Content, setPart2Content] = useState('');
   const [part3Content, setPart3Content] = useState('');
   const [part4Content, setPart4Content] = useState('');
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitFile, setSubmitFile] = useState<File | null>(null);
   const [submitFileBase64, setSubmitFileBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,6 +150,24 @@ export const StudentAssignments = () => {
     }
   };
 
+  const handleAnswerChange = (questionId: string, value: any, subQuestionId?: string) => {
+    setAnswers(prev => {
+      if (subQuestionId) {
+        return {
+          ...prev,
+          [questionId]: {
+            ...(prev[questionId] || {}),
+            [subQuestionId]: value
+          }
+        };
+      }
+      return {
+        ...prev,
+        [questionId]: value
+      };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAssignment) return;
@@ -156,8 +177,8 @@ export const StudentAssignments = () => {
 
     const combinedContent = `Phần 1: Trắc nghiệm nhiều lựa chọn\n${part1Content || 'Không có'}\n\nPhần 2: Trắc nghiệm Đúng/Sai\n${part2Content || 'Không có'}\n\nPhần 3: Trả lời ngắn\n${part3Content || 'Không có'}\n\nPhần 4: Tự luận\n${part4Content || 'Không có'}`;
 
-    if (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64) {
-      alert('Vui lòng nhập nội dung hoặc đính kèm tệp');
+    if (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64 && Object.keys(answers).length === 0) {
+      toast.error('Vui lòng nhập nội dung, trả lời câu hỏi hoặc đính kèm tệp');
       return;
     }
 
@@ -215,6 +236,7 @@ export const StudentAssignments = () => {
         assignmentId: selectedAssignment.id,
         studentId: user.id,
         content: combinedContent,
+        answers: JSON.stringify(answers),
         part1Content,
         part2Content,
         part3Content,
@@ -232,7 +254,13 @@ export const StudentAssignments = () => {
 
       await dataProvider.submitAssignment(submissionData);
       
-      alert('Nộp bài thành công!');
+      toast.success('Nộp bài thành công!');
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+      });
       setSelectedAssignment(null);
       setPart1Content('');
       setPart2Content('');
@@ -243,7 +271,7 @@ export const StudentAssignments = () => {
       fetchData();
     } catch (error) {
       console.error("Error submitting assignment:", error);
-      alert('Có lỗi xảy ra khi nộp bài');
+      toast.error('Có lỗi xảy ra khi nộp bài');
     } finally {
       setIsSubmitting(false);
     }
@@ -337,13 +365,23 @@ export const StudentAssignments = () => {
       </div>
 
       {filteredAssignments.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-          <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Inbox className="h-12 w-12 text-slate-300" />
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-24 bg-white/60 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-indigo-100 shadow-sm"
+        >
+          <div className="relative w-32 h-32 mx-auto mb-8">
+            <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20"></div>
+            <div className="relative w-full h-full bg-gradient-to-tr from-indigo-50 to-white rounded-full flex items-center justify-center shadow-inner border border-indigo-50">
+              <Inbox className="h-14 w-14 text-indigo-400" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center animate-bounce">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+            </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900">Chưa có bài tập nào</h3>
-          <p className="text-slate-500 mt-2 max-w-md mx-auto">Tuyệt vời! Bạn đã hoàn thành tất cả các nhiệm vụ được giao hoặc không có bài tập nào phù hợp với bộ lọc.</p>
-        </div>
+          <h3 className="text-3xl font-bold text-slate-800 mb-3 font-display">Chưa có bài tập nào</h3>
+          <p className="text-slate-500 text-lg max-w-md mx-auto leading-relaxed">Tuyệt vời! Bạn đã hoàn thành tất cả các nhiệm vụ được giao hoặc không có bài tập nào phù hợp với bộ lọc.</p>
+        </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredAssignments.map(assignment => {
@@ -485,10 +523,12 @@ export const StudentAssignments = () => {
           setSubmitFileBase64(null);
         }}
         title={`Nộp bài: ${selectedAssignment?.title}`}
+        size="5xl"
       >
         <div className="p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
           {selectedAssignment && (
-            <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+            <>
+              <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
               <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
                 <FileText size={18} className="text-indigo-600" />
                 Yêu cầu bài tập:
@@ -564,62 +604,125 @@ export const StudentAssignments = () => {
                 );
               })()}
 
-              {selectedAssignment.questions && selectedAssignment.questions.length > 0 && (
-                <div className="space-y-4 mt-6 border-t border-slate-200 pt-6">
-                  <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                    <BookOpen size={18} className="text-indigo-600" />
-                    Danh sách câu hỏi ({selectedAssignment.questions.length} câu)
-                  </h4>
-                  <div className="space-y-4">
-                    {selectedAssignment.questions.map((q, idx) => (
-                      <div key={`${q.id || 'q'}-${idx}`} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                        <div className="flex justify-between items-start mb-3">
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 font-bold text-sm">
-                            {idx + 1}
-                          </span>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-lg">
-                            {q.type === 'multiple_choice' ? 'Trắc nghiệm' :
-                             q.type === 'true_false' ? 'Đúng/Sai' :
-                             q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
-                            {' • '}{q.points} điểm
-                          </span>
-                        </div>
-                        <p className="text-slate-800 font-medium mb-4">{q.content}</p>
-                        
-                        {q.type === 'multiple_choice' && q.options && (
-                          <div className="space-y-2 pl-2">
-                            {q.options.map((opt, optIdx) => (
-                              <div key={optIdx} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
-                                <div className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 mt-0.5" />
-                                <span className="text-sm text-slate-700">{opt}</span>
-                              </div>
-                            ))}
+              {/* Removed read-only question list */}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+            {selectedAssignment?.questions && selectedAssignment.questions.length > 0 && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Danh sách câu hỏi</h3>
+                {selectedAssignment.questions.map((q, idx) => (
+                  <div key={`${q.id || 'q'}-${idx}`} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 space-y-4">
+                        <div>
+                          <p className="text-lg font-medium text-slate-800 leading-relaxed">{q.content}</p>
+                          <div className="flex gap-2 mt-2">
+                            <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
+                              {q.type === 'multiple_choice' ? 'Trắc nghiệm' : 
+                               q.type === 'true_false' ? 'Đúng/Sai' : 
+                               q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
+                            </span>
+                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">
+                              {q.type === 'true_false' ? 1 : q.points} điểm
+                            </span>
                           </div>
+                        </div>
+
+                        {q.type === 'multiple_choice' && q.options?.map((opt: string, i: number) => (
+                          <label 
+                            key={i} 
+                            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              answers[q.id] === opt 
+                                ? 'border-indigo-600 bg-indigo-50/50' 
+                                : 'border-slate-100 hover:border-indigo-200'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                              answers[q.id] === opt ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
+                            }`}>
+                              {answers[q.id] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+                            <input 
+                              type="radio" 
+                              name={`question-${q.id}`}
+                              value={opt}
+                              checked={answers[q.id] === opt}
+                              onChange={() => handleAnswerChange(q.id, opt)}
+                              className="hidden"
+                            />
+                            <span className={`text-base ${answers[q.id] === opt ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
+                              {opt}
+                            </span>
+                          </label>
+                        ))}
+
+                        {q.type === 'true_false' && q.subQuestions?.map((sq: any, i: number) => (
+                          <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
+                            <div className="flex gap-3">
+                              <span className="font-bold text-slate-400">{String.fromCharCode(97 + i)})</span>
+                              <span className="text-slate-700 font-medium">{sq.content}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleAnswerChange(q.id, true, sq.id)}
+                                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 ${
+                                  answers[q.id]?.[sq.id] === true
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
+                                }`}
+                              >
+                                Đúng
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAnswerChange(q.id, false, sq.id)}
+                                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 ${
+                                  answers[q.id]?.[sq.id] === false
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
+                                }`}
+                              >
+                                Sai
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {q.type === 'short_answer' && (
+                          <input 
+                            type="text"
+                            value={answers[q.id] || ''}
+                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                            placeholder="Nhập câu trả lời của bạn..."
+                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                          />
                         )}
 
-                        {q.type === 'true_false' && q.subQuestions && (
-                          <div className="space-y-3 pl-2">
-                            {q.subQuestions.map((subQ: any, subIdx: number) => (
-                              <div key={`${subQ.id || 'sq'}-${subIdx}`} className="flex items-start justify-between gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50">
-                                <span className="text-sm text-slate-700 font-medium flex-1">{subQ.content}</span>
-                                <div className="flex gap-2 flex-shrink-0">
-                                  <div className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-500 bg-white">Đúng</div>
-                                  <div className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-500 bg-white">Sai</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                        {q.type === 'essay' && (
+                          <textarea 
+                            value={answers[q.id] || ''}
+                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                            placeholder="Trình bày chi tiết bài làm của bạn..."
+                            rows={6}
+                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                          />
                         )}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {(selectedAssignment.part1 || selectedAssignment.part2 || selectedAssignment.part3 || selectedAssignment.part4) && (
+              <div className="space-y-6 pt-6 border-t">
+                <h3 className="text-lg font-bold text-gray-900">Nội dung văn bản</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">1</span>
@@ -678,6 +781,8 @@ export const StudentAssignments = () => {
                 />
               </div>
             </div>
+            </div>
+            )}
 
             <div className="p-6 bg-indigo-50 rounded-[2rem] border-2 border-dashed border-indigo-200">
               <label className="block text-sm font-bold text-indigo-900 mb-4">
@@ -713,7 +818,7 @@ export const StudentAssignments = () => {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64)}
+                disabled={isSubmitting || !selectedAssignment || (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64 && Object.keys(answers).length === 0)}
                 className="px-10 py-4 text-white bg-indigo-600 rounded-2xl hover:bg-indigo-700 transition-all font-bold disabled:opacity-50 shadow-lg shadow-indigo-100 flex items-center gap-2"
               >
                 {isSubmitting ? (
@@ -730,6 +835,8 @@ export const StudentAssignments = () => {
               </button>
             </div>
           </form>
+          </>
+          )}
         </div>
       </Modal>
     </motion.div>

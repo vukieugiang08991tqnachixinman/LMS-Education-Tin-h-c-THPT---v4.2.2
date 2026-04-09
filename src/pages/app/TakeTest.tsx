@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { dataProvider } from '../../core/provider';
 import { Test, Question } from '../../core/types';
 import { Modal } from '../../components/Modal';
-import { Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, Loader2, Timer, Flag, HelpCircle, FileText } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, Loader2, Timer, Flag, HelpCircle, FileText, AlertCircle } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
+import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 export const TakeTest: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -201,7 +203,7 @@ export const TakeTest: React.FC = () => {
       }
     }
 
-    const finalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 10 * 10) / 10 : 0;
+    const finalScore = maxScore > 0 ? Number(((totalScore / maxScore) * 10).toFixed(2)) : 0;
 
     try {
       await dataProvider.submitAssignment({
@@ -225,10 +227,17 @@ export const TakeTest: React.FC = () => {
         });
       }
       
+      toast.success('Nộp bài thành công!');
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+      });
       navigate(`/app/tests/${test.id}/result`);
     } catch (error) {
       console.error("Error submitting test", error);
-      alert("Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.");
+      toast.error("Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.");
       setIsSubmitting(false);
     }
   };
@@ -243,6 +252,24 @@ export const TakeTest: React.FC = () => {
   }
 
   if (!test) return null;
+
+  if (!test || !test.questions || test.questions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50 p-6">
+        <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center max-w-md">
+          <AlertCircle size={48} className="mx-auto text-amber-500 mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Không tìm thấy bài kiểm tra</h2>
+          <p className="text-slate-600 mb-6">Bài kiểm tra này không tồn tại hoặc không có câu hỏi nào.</p>
+          <button 
+            onClick={() => navigate('/app/tests')}
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
+          >
+            Quay lại danh sách
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentQuestion = test.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === test.questions.length - 1;
@@ -406,7 +433,7 @@ export const TakeTest: React.FC = () => {
                     {currentQuestion.subQuestions.map((sq, sqIdx) => (
                       <div key={`${sq.id || 'sq'}-${sqIdx}`} className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex-1 text-lg font-medium text-slate-700">
-                          <span className="text-indigo-600 font-black mr-3">{sq.id})</span>
+                          <span className="text-indigo-600 font-black mr-3">{String.fromCharCode(97 + sqIdx)})</span>
                           {sq.content}
                         </div>
                         <div className="flex items-center gap-3 shrink-0">

@@ -143,13 +143,23 @@ export const StudentLessons = () => {
       </header>
 
       {groupedLessons.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-          <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <BookOpen className="h-12 w-12 text-slate-300" />
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-24 bg-white/60 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-indigo-100 shadow-sm"
+        >
+          <div className="relative w-32 h-32 mx-auto mb-8">
+            <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20"></div>
+            <div className="relative w-full h-full bg-gradient-to-tr from-indigo-50 to-white rounded-full flex items-center justify-center shadow-inner border border-indigo-50">
+              <BookOpen className="h-14 w-14 text-indigo-400" />
+            </div>
+            <div className="absolute -top-2 -right-2 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center animate-bounce" style={{ animationDelay: '0.2s' }}>
+              <Star className="h-4 w-4 text-amber-500" />
+            </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900">Chưa có bài học nào</h3>
-          <p className="text-slate-500 mt-2 max-w-md mx-auto">Hiện tại giáo viên chưa xuất bản bài học nào cho lớp của bạn. Hãy quay lại sau nhé!</p>
-        </div>
+          <h3 className="text-3xl font-bold text-slate-800 mb-3 font-display">Chưa có bài học nào</h3>
+          <p className="text-slate-500 text-lg max-w-md mx-auto leading-relaxed">Hiện tại giáo viên chưa xuất bản bài học nào cho lớp của bạn. Hãy quay lại sau nhé!</p>
+        </motion.div>
       ) : (
         <div className="space-y-16">
           {groupedLessons.map((subject, sIdx) => (
@@ -176,6 +186,7 @@ export const StudentLessons = () => {
                       {topic.lessons.map(lesson => {
                         const prog = getLessonProgress(lesson.id);
                         const isCompleted = prog?.completed;
+                        const isOverdue = lesson.dueDate && !isCompleted && new Date(lesson.dueDate) < new Date();
                         
                         return (
                           <motion.div 
@@ -184,18 +195,26 @@ export const StudentLessons = () => {
                             whileHover={{ y: -4 }}
                             onClick={() => navigate(`/app/lessons/${lesson.id}`)}
                             className={`group relative bg-white border-2 rounded-[2rem] p-6 transition-all cursor-pointer ${
-                              isCompleted ? 'border-emerald-100 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-100' : 'border-slate-100 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100'
+                              isCompleted ? 'border-emerald-100 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-100' : 
+                              isOverdue ? 'border-red-100 hover:border-red-300 hover:shadow-xl hover:shadow-red-100' :
+                              'border-slate-100 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100'
                             }`}
                           >
                             <div className="flex items-start justify-between mb-4">
                               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
-                                isCompleted ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
+                                isCompleted ? 'bg-emerald-50 text-emerald-600' : 
+                                isOverdue ? 'bg-red-50 text-red-600' :
+                                'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
                               }`}>
                                 {isCompleted ? <CheckCircle size={24} /> : <PlayCircle size={24} />}
                               </div>
                               {isCompleted ? (
                                 <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full uppercase tracking-wider">
                                   Đã học
+                                </span>
+                              ) : isOverdue ? (
+                                <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full uppercase tracking-wider">
+                                  Quá hạn
                                 </span>
                               ) : (
                                 <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full uppercase tracking-wider">
@@ -208,22 +227,32 @@ export const StudentLessons = () => {
                               {lesson.title}
                             </h4>
                             
-                            <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                              <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-                                {lesson.videoUrl && (
-                                  <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-md">
-                                    <Video size={12} />
-                                    <span>Video</span>
-                                  </div>
-                                )}
-                                <Clock size={14} />
-                                <span>{isCompleted && prog.completedAt ? new Date(prog.completedAt).toLocaleDateString('vi-VN') : 'Chưa bắt đầu'}</span>
+                            <div className="flex flex-col gap-2 pt-4 border-t border-slate-50">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                  {lesson.videoUrl && (
+                                    <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-md">
+                                      <Video size={12} />
+                                      <span>Video</span>
+                                    </div>
+                                  )}
+                                  <Clock size={14} />
+                                  <span>{isCompleted && prog.completedAt ? new Date(prog.completedAt).toLocaleDateString('vi-VN') : 'Chưa bắt đầu'}</span>
+                                </div>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                  isCompleted ? 'bg-emerald-100 text-emerald-600' : 
+                                  isOverdue ? 'bg-red-100 text-red-600' :
+                                  'bg-slate-100 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'
+                                }`}>
+                                  <ArrowRight size={16} />
+                                </div>
                               </div>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                                isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'
-                              }`}>
-                                <ArrowRight size={16} />
-                              </div>
+                              {lesson.dueDate && !isCompleted && (
+                                <div className={`text-xs font-medium flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-amber-600'}`}>
+                                  <Clock size={12} />
+                                  Hạn: {new Date(lesson.dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );

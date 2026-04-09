@@ -204,13 +204,23 @@ export const StudentTests: React.FC = () => {
             </motion.div>
           );
         }) : (
-          <div className="col-span-full py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 text-center">
-            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FileText className="h-12 w-12 text-slate-300" />
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="col-span-full py-24 bg-white/60 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-indigo-100 shadow-sm text-center"
+          >
+            <div className="relative w-32 h-32 mx-auto mb-8">
+              <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20"></div>
+              <div className="relative w-full h-full bg-gradient-to-tr from-indigo-50 to-white rounded-full flex items-center justify-center shadow-inner border border-indigo-50">
+                <FileText className="h-14 w-14 text-indigo-400" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center animate-bounce" style={{ animationDelay: '0.4s' }}>
+                <Clock className="h-4 w-4 text-rose-500" />
+              </div>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900">Không có bài kiểm tra</h3>
-            <p className="text-slate-500 mt-2 max-w-md mx-auto">Hiện tại bạn không có bài kiểm tra nào cần thực hiện.</p>
-          </div>
+            <h3 className="text-3xl font-bold text-slate-800 mb-3 font-display">Không có bài kiểm tra</h3>
+            <p className="text-slate-500 text-lg max-w-md mx-auto leading-relaxed">Hiện tại bạn không có bài kiểm tra nào cần thực hiện.</p>
+          </motion.div>
         )}
       </div>
     </motion.div>

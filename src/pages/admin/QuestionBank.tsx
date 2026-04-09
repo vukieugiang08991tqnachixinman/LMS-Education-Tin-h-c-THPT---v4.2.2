@@ -6,6 +6,8 @@ import { Modal } from '../../components/Modal';
 import { GoogleGenAI, Type } from '@google/genai';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
 import * as XLSX from 'xlsx';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 export const QuestionBank: React.FC = () => {
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
@@ -835,6 +837,7 @@ LƯU Ý:
               <th className="py-3 px-6 text-sm font-semibold text-gray-600">Nội dung</th>
               <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-32">Loại</th>
               <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-32">Mức độ</th>
+              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-24">Điểm</th>
               <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-24 text-right">Thao tác</th>
             </tr>
           </thead>
@@ -868,6 +871,9 @@ LƯU Ý:
                   }`}>
                     {q.difficulty === 'recognition' ? 'Nhận biết' : q.difficulty === 'understanding' ? 'Thông hiểu' : 'Vận dụng'}
                   </span>
+                </td>
+                <td className="py-4 px-6 text-sm font-medium text-gray-900">
+                  {q.points}
                 </td>
                 <td className="py-4 px-6 text-right">
                   <div className="flex justify-end gap-2">
@@ -928,7 +934,7 @@ LƯU Ý:
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
               <select 
@@ -954,18 +960,32 @@ LƯU Ý:
                 <option value="application">Vận dụng</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Điểm số</label>
+              <input 
+                type="number" 
+                required
+                min={0}
+                step={0.01}
+                value={questionForm.type === 'true_false' ? 1 : questionForm.points}
+                onChange={e => setQuestionForm({...questionForm, points: Number(e.target.value)})}
+                disabled={questionForm.type === 'true_false'}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${questionForm.type === 'true_false' ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
+              />
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi (Lệnh dẫn/Ngữ cảnh)</label>
-            <textarea 
-              required
-              value={questionForm.content}
-              onChange={e => setQuestionForm({...questionForm, content: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              rows={3}
-              placeholder="Nhập nội dung câu hỏi hoặc lệnh dẫn/ngữ cảnh chung..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+              <ReactQuill 
+                theme="snow"
+                value={questionForm.content}
+                onChange={content => setQuestionForm({...questionForm, content})}
+                className="h-40 mb-12"
+                placeholder="Nhập nội dung câu hỏi hoặc lệnh dẫn/ngữ cảnh chung..."
+              />
+            </div>
           </div>
 
           {questionForm.type === 'multiple_choice' && (

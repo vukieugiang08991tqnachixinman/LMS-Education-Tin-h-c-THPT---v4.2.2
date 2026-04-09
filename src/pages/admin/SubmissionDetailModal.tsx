@@ -199,7 +199,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
         }
       });
       
-      const finalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 10 * 10) / 10 : 0;
+      const finalScore = maxScore > 0 ? Number(((totalScore / maxScore) * 10).toFixed(2)) : 0;
       
       const payload: Partial<Submission> = {
         score: finalScore,
@@ -226,7 +226,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 
   const totalCurrentScore = test.questions.reduce((sum, q) => sum + (scores[q.id] || 0), 0);
   const maxTotalScore = test.questions.reduce((sum, q) => sum + q.points, 0);
-  const finalScore10 = maxTotalScore > 0 ? Math.round((totalCurrentScore / maxTotalScore) * 10 * 10) / 10 : 0;
+  const finalScore10 = maxTotalScore > 0 ? Number(((totalCurrentScore / maxTotalScore) * 10).toFixed(2)) : 0;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết bài làm - ${submission.student?.name || 'Học sinh'}`}>
@@ -292,7 +292,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                       type="number" 
                       min="0" 
                       max={q.points} 
-                      step="0.25"
+                      step="0.01"
                       value={scores[q.id] !== undefined ? scores[q.id] : ''}
                       onChange={(e) => setScores({...scores, [q.id]: parseFloat(e.target.value) || 0})}
                       className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-center font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500"

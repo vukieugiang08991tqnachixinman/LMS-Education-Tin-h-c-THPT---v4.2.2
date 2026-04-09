@@ -7,6 +7,8 @@ import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 
 import { useNavigate } from 'react-router-dom';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 export const TestManagement: React.FC = () => {
   const [tests, setTests] = useState<Test[]>([]);
@@ -605,6 +607,12 @@ HẾT ---`;
     setFormData({ ...formData, questions: newQuestions });
   };
 
+  const updateQuestionPoints = (index: number, points: number) => {
+    const newQuestions = [...(formData.questions || [])];
+    newQuestions[index] = { ...newQuestions[index], points };
+    setFormData({ ...formData, questions: newQuestions });
+  };
+
   const handleOpenQuestionModal = (index?: number) => {
     if (index !== undefined && formData.questions) {
       setEditingQuestionIndex(index);
@@ -993,7 +1001,23 @@ HẾT ---`;
                         - {q.difficulty === 'recognition' ? 'Nhận biết' : q.difficulty === 'understanding' ? 'Thông hiểu' : 'Vận dụng'}
                       </span>
                     )}
-                    <span className="text-indigo-600 font-medium ml-auto">{q.type === 'true_false' ? 1 : q.points} điểm</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      {q.type === 'true_false' ? (
+                        <span className="text-indigo-600 font-medium">1 điểm</span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={q.points || 0}
+                            onChange={(e) => updateQuestionPoints(index, Number(e.target.value))}
+                            className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-600">điểm</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <p className="text-gray-900 text-sm mb-2">{q.content}</p>
                   {q.type === 'multiple_choice' && (
@@ -1310,14 +1334,15 @@ HẾT ---`;
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi (Lệnh dẫn/Ngữ cảnh)</label>
-            <textarea 
-              required
-              value={questionForm.content}
-              onChange={e => setQuestionForm({...questionForm, content: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              rows={3}
-              placeholder="Nhập nội dung câu hỏi hoặc lệnh dẫn/ngữ cảnh chung..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+              <ReactQuill 
+                theme="snow"
+                value={questionForm.content}
+                onChange={content => setQuestionForm({...questionForm, content})}
+                className="h-40 mb-12"
+                placeholder="Nhập nội dung câu hỏi hoặc lệnh dẫn/ngữ cảnh chung..."
+              />
+            </div>
           </div>
 
           {questionForm.type === 'multiple_choice' && (
@@ -1467,7 +1492,7 @@ HẾT ---`;
               type="number" 
               required
               min={0}
-              step={0.1}
+              step={0.01}
               value={questionForm.type === 'true_false' ? 1 : questionForm.points}
               onChange={e => setQuestionForm({...questionForm, points: Number(e.target.value)})}
               disabled={questionForm.type === 'true_false'}

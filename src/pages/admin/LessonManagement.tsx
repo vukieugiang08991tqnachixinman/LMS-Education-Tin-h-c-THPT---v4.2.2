@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, BookOpen, CheckCircle, XCircle, Sparkles, Loader2, FileText, Upload, FileUp, Users, Check, Video, HelpCircle, Code, Image as ImageIcon, GripVertical, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, BookOpen, CheckCircle, XCircle, Sparkles, Loader2, FileText, Upload, FileUp, Users, Check, Video, HelpCircle, Code, Image as ImageIcon, GripVertical, RefreshCw, Clock } from 'lucide-react';
 import { dataProvider } from '../../core/provider';
 import { Lesson, Subject, Topic, Assignment, Submission, User, InteractiveBlock, Class, InteractiveQuestion, InteractiveQuestionType, Progress, EssayQuestion } from '../../core/types';
 import { Modal } from '../../components/Modal';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { ensureArray } from '../../core/utils/data';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 const LessonManagement = () => {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -34,6 +36,7 @@ const LessonManagement = () => {
     order: 1,
     pptUrl: '',
     videoUrl: '',
+    dueDate: '',
     interactiveContent: [] as InteractiveBlock[],
     essayQuestions: [] as EssayQuestion[]
   });
@@ -212,6 +215,7 @@ const LessonManagement = () => {
         order: lesson.order,
         pptUrl: lesson.pptUrl || '',
         videoUrl: lesson.videoUrl || '',
+        dueDate: lesson.dueDate || '',
         interactiveContent: ensureArray(lesson.interactiveContent),
         essayQuestions: ensureArray(lesson.essayQuestions)
       });
@@ -228,6 +232,7 @@ const LessonManagement = () => {
         order: lessons.length + 1,
         pptUrl: '',
         videoUrl: '',
+        dueDate: '',
         interactiveContent: [],
         essayQuestions: []
       });
@@ -252,6 +257,7 @@ const LessonManagement = () => {
       order: formData.order,
       pptUrl: formData.pptUrl,
       videoUrl: formData.videoUrl,
+      dueDate: formData.dueDate || undefined,
       interactiveContent: formData.interactiveContent,
       essayQuestions: formData.essayQuestions
     };
@@ -784,6 +790,28 @@ const LessonManagement = () => {
   const filteredClassesForForm = classes.filter(c => c.grade.toString() === formData.grade);
   const filteredClassesForList = classes.filter(c => !filterGrade || c.grade.toString() === filterGrade);
 
+  const filteredStudentsForGrading = students.filter(student => {
+    if (selectedLessonForGrading) {
+      if (selectedLessonForGrading.classId) {
+        return String(student.classId) === String(selectedLessonForGrading.classId);
+      }
+      if (selectedLessonForGrading.grade) {
+        const studentClass = classes.find(c => c.id === student.classId);
+        return studentClass && String(studentClass.grade) === String(selectedLessonForGrading.grade);
+      }
+    } else if (lessonAssignments.length > 0) {
+      const assignment = lessonAssignments[0];
+      if (assignment.classId) {
+        return String(student.classId) === String(assignment.classId);
+      }
+      if (assignment.grade) {
+        const studentClass = classes.find(c => c.id === student.classId);
+        return studentClass && String(studentClass.grade) === String(assignment.grade);
+      }
+    }
+    return true;
+  });
+
   const filteredLessons = lessons.filter(lesson => {
     if (filterGrade && String(lesson.grade) !== String(filterGrade)) return false;
     if (filterClassId && String(lesson.classId) !== String(filterClassId)) return false;
@@ -935,6 +963,12 @@ const LessonManagement = () => {
                               PPT
                             </span>
                           )}
+                          {lesson.dueDate && (
+                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                              <Clock size={10} />
+                              Hạn: {new Date(lesson.dueDate).toLocaleDateString('vi-VN')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1053,6 +1087,15 @@ const LessonManagement = () => {
                 <option value="published">Xuất bản</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hạn hoàn thành (Tùy chọn)</label>
+              <input
+                type="datetime-local"
+                value={formData.dueDate}
+                onChange={e => setFormData({...formData, dueDate: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -1089,14 +1132,15 @@ const LessonManagement = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung / Yêu cầu cần đạt</label>
-            <textarea
-              required
-              rows={4}
-              value={formData.content}
-              onChange={e => setFormData({...formData, content: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="Nhập nội dung bài giảng hoặc yêu cầu học sinh cần đạt..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
+              <ReactQuill 
+                theme="snow"
+                value={formData.content}
+                onChange={content => setFormData({...formData, content})}
+                className="h-40 mb-12"
+                placeholder="Nhập nội dung bài giảng hoặc yêu cầu học sinh cần đạt..."
+              />
+            </div>
           </div>
 
           <div>
@@ -1363,13 +1407,15 @@ const LessonManagement = () => {
                       Xóa
                     </button>
                   </div>
-                  <textarea
-                    value={question.content}
-                    onChange={e => updateEssayQuestion(question.id, e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                    placeholder="Nhập nội dung câu hỏi tự luận..."
-                    rows={3}
-                  />
+                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
+                    <ReactQuill 
+                      theme="snow"
+                      value={question.content}
+                      onChange={content => updateEssayQuestion(question.id, content)}
+                      className="h-32 mb-12"
+                      placeholder="Nhập nội dung câu hỏi tự luận..."
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -1441,18 +1487,24 @@ const LessonManagement = () => {
             </h3>
             
             <div className="space-y-3">
-              {students.map(student => {
-                const progress = lessonProgresses.find(p => p.studentId === student.id);
-                return (
-                  <StudentProgressRow 
-                    key={student.id} 
-                    student={student} 
-                    progress={progress} 
-                    lesson={selectedLessonForGrading}
-                    onSaveFeedback={handleSaveProgressFeedback} 
-                  />
-                );
-              })}
+              {filteredStudentsForGrading.length === 0 ? (
+                <div className="p-4 text-center text-sm text-gray-500 bg-gray-50 rounded-xl border border-gray-100">
+                  Không có học sinh nào trong danh sách được giao.
+                </div>
+              ) : (
+                filteredStudentsForGrading.map(student => {
+                  const progress = lessonProgresses.find(p => p.studentId === student.id);
+                  return (
+                    <StudentProgressRow 
+                      key={student.id} 
+                      student={student} 
+                      progress={progress} 
+                      lesson={selectedLessonForGrading}
+                      onSaveFeedback={handleSaveProgressFeedback} 
+                    />
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -1548,7 +1600,7 @@ const LessonManagement = () => {
                                       <label className="text-sm font-bold text-gray-700">Điểm số (0-10):</label>
                                       <input 
                                         type="number" 
-                                        min="0" max="10" step="0.5"
+                                        min="0" max="10" step="0.01"
                                         value={gradingData.score}
                                         onChange={e => setGradingData({...gradingData, score: e.target.value})}
                                         className="w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"

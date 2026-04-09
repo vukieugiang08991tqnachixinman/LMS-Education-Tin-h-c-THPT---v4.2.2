@@ -90,6 +90,7 @@ export interface Lesson {
   status: 'draft' | 'published';
   grade: string;
   classId?: string;
+  dueDate?: string;
   interactiveContent?: InteractiveBlock[];
   essayQuestions?: EssayQuestion[];
 }
@@ -163,6 +164,7 @@ export interface Submission {
   testId?: string;
   studentId: string;
   content: string;
+  answers?: string; // JSON string of structured answers
   part1Content?: string;
   part2Content?: string;
   part3Content?: string;
