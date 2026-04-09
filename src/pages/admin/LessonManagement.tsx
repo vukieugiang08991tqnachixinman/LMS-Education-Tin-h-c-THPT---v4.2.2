@@ -1473,7 +1473,7 @@ const LessonManagement = () => {
         isOpen={isGradingModalOpen}
         onClose={() => { setIsGradingModalOpen(false); setEditingSubmissionId(null); }}
         title="Theo dõi & Nhận xét học sinh"
-        size="5xl"
+        size="7xl"
       >
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
           <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-sm font-medium flex items-center gap-2">
