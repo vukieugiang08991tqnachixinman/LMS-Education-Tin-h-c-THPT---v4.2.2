@@ -412,8 +412,31 @@ LƯU Ý:
         const rows = data.slice(1).filter(row => row.length > 0 && row[2]); // Must have content
         
         const newQuestionsPayloads: BankQuestion[] = rows.map((row) => {
-          const type = row[0] || 'multiple_choice';
-          const difficulty = row[1] || 'recognition';
+          const rawType = String(row[0] || '').toLowerCase();
+          const rawDifficulty = String(row[1] || '').toLowerCase();
+          
+          const typeMap: Record<string, QuestionType> = {
+            'trắc nghiệm': 'multiple_choice',
+            'multiple_choice': 'multiple_choice',
+            'đúng/sai': 'true_false',
+            'true_false': 'true_false',
+            'trả lời ngắn': 'short_answer',
+            'short_answer': 'short_answer',
+            'tự luận': 'essay',
+            'essay': 'essay'
+          };
+
+          const difficultyMap: Record<string, QuestionDifficulty> = {
+            'nhận biết': 'recognition',
+            'recognition': 'recognition',
+            'thông hiểu': 'understanding',
+            'understanding': 'understanding',
+            'vận dụng': 'application',
+            'application': 'application'
+          };
+
+          const type = typeMap[rawType] || 'multiple_choice';
+          const difficulty = difficultyMap[rawDifficulty] || 'recognition';
           const content = row[2] || '';
           const optA = row[3] || '';
           const optB = row[4] || '';
@@ -571,7 +594,7 @@ LƯU Ý:
 
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
-          contents: contents,
+          contents: { parts: contents },
           config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -821,8 +844,8 @@ LƯU Ý:
       </div>
 
       {/* Questions List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-12 text-center">
@@ -852,9 +875,12 @@ LƯU Ý:
                     className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                   />
                 </td>
-                <td className="py-4 px-6 text-sm text-gray-500">{q.id.substring(0, 6)}</td>
+                <td className="py-4 px-6 text-sm text-gray-500">...{q.id.substring(q.id.length - 4)}</td>
                 <td className="py-4 px-6">
-                  <div className="font-medium text-gray-900 line-clamp-2">{q.content}</div>
+                  <div 
+                    className="font-medium text-gray-900 line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: q.content }}
+                  />
                   <div className="text-sm text-gray-500 mt-1">
                     {subjects.find(s => s.id === q.subjectId)?.name} 
                     {q.topicId && ` - ${topics.find(t => t.id === q.topicId)?.name}`}
@@ -894,7 +920,7 @@ LƯU Ý:
               </tr>
             )) : (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-gray-500">Không tìm thấy câu hỏi nào.</td>
+                <td colSpan={7} className="py-8 text-center text-gray-500">Không tìm thấy câu hỏi nào.</td>
               </tr>
             )}
           </tbody>
@@ -980,7 +1006,7 @@ LƯU Ý:
             <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
               <ReactQuill 
                 theme="snow"
-                value={questionForm.content}
+                value={questionForm.content || ''}
                 onChange={content => setQuestionForm({...questionForm, content})}
                 className="h-40 mb-12"
                 placeholder="Nhập nội dung câu hỏi hoặc lệnh dẫn/ngữ cảnh chung..."
@@ -1628,12 +1654,14 @@ LƯU Ý:
 
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>
-                <textarea
-                  value={q.content}
-                  onChange={(e) => handlePreviewChange(qIndex, 'content', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  rows={3}
-                />
+                <div className="bg-white rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
+                  <ReactQuill 
+                    theme="snow"
+                    value={q.content || ''}
+                    onChange={(content) => handlePreviewChange(qIndex, 'content', content)}
+                    className="h-32 mb-12"
+                  />
+                </div>
               </div>
 
               {q.type === 'multiple_choice' && (

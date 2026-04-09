@@ -1337,7 +1337,7 @@ HẾT ---`;
             <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
               <ReactQuill 
                 theme="snow"
-                value={questionForm.content}
+                value={questionForm.content || ''}
                 onChange={content => setQuestionForm({...questionForm, content})}
                 className="h-40 mb-12"
                 placeholder="Nhập nội dung câu hỏi hoặc lệnh dẫn/ngữ cảnh chung..."

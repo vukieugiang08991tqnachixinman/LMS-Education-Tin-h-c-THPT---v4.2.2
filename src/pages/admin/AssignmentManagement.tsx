@@ -1092,7 +1092,7 @@ export const AssignmentManagement = () => {
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
               <ReactQuill 
                 theme="snow"
-                value={formData.content}
+                value={formData.content || ''}
                 onChange={content => setFormData({...formData, content})}
                 className="h-40 mb-12"
                 placeholder="Nhập nội dung bài học hoặc yêu cầu cần đạt..."
