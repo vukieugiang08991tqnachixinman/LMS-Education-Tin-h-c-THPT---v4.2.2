@@ -810,6 +810,7 @@ HẾT ---`;
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
         title={editingTest ? "Sửa bài kiểm tra" : "Tạo bài kiểm tra mới"}
+        size="7xl"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
@@ -1019,7 +1020,10 @@ HẾT ---`;
                       )}
                     </div>
                   </div>
-                  <p className="text-gray-900 text-sm mb-2">{q.content}</p>
+                  <div 
+                    className="text-gray-900 text-sm mb-2"
+                    dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                  />
                   {q.type === 'multiple_choice' && (
                     <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
                       {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
@@ -1034,7 +1038,10 @@ HẾT ---`;
                       {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
                         <div key={i} className="text-sm flex items-start gap-2">
                           <span className="font-medium text-gray-700">{sq.id})</span>
-                          <span className="text-gray-600 flex-1">{sq.content}</span>
+                          <div 
+                            className="text-gray-600 flex-1"
+                            dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
+                          />
                           <span className="text-xs text-gray-500 italic">
                             ({sq.difficulty === 'recognition' ? 'Nhận biết' : sq.difficulty === 'understanding' ? 'Thông hiểu' : 'Vận dụng'})
                           </span>
@@ -1382,18 +1389,22 @@ HẾT ---`;
                 <div key={`${sq.id || 'sq'}-${idx}`} className="p-4 border border-gray-200 rounded-xl bg-gray-50 space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <span className="font-bold text-gray-700 w-6 text-center">{sq.id})</span>
-                    <input 
-                      type="text" 
-                      required
-                      value={sq.content}
-                      onChange={e => {
-                        const newSubQs = [...(questionForm.subQuestions || [])];
-                        newSubQs[idx] = { ...sq, content: e.target.value };
-                        setQuestionForm({...questionForm, subQuestions: newSubQs});
-                      }}
-                      placeholder={`Nội dung ý ${sq.id}`}
-                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    />
+                    <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+                      <ReactQuill 
+                        theme="snow"
+                        value={sq.content || ''}
+                        onChange={content => {
+                          const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                          const newSubQs = [...currentSubs];
+                          if (newSubQs[idx]) {
+                            newSubQs[idx] = { ...sq, content };
+                            setQuestionForm({...questionForm, subQuestions: newSubQs});
+                          }
+                        }}
+                        className="h-20 mb-10"
+                        placeholder={`Nội dung ý ${sq.id}`}
+                      />
+                    </div>
                   </div>
                   <div className="flex items-center gap-6 pl-10">
                     <div className="flex items-center gap-2">
@@ -1401,9 +1412,12 @@ HẾT ---`;
                       <select 
                         value={sq.difficulty}
                         onChange={e => {
-                          const newSubQs = [...(questionForm.subQuestions || [])];
-                          newSubQs[idx] = { ...sq, difficulty: e.target.value as any };
-                          setQuestionForm({...questionForm, subQuestions: newSubQs});
+                          const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                          const newSubQs = [...currentSubs];
+                          if (newSubQs[idx]) {
+                            newSubQs[idx] = { ...sq, difficulty: e.target.value as any };
+                            setQuestionForm({...questionForm, subQuestions: newSubQs});
+                          }
                         }}
                         className="px-2 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       >
@@ -1420,9 +1434,12 @@ HẾT ---`;
                           name={`tfAnswer-${sq.id}`}
                           checked={sq.correctAnswer === true}
                           onChange={() => {
-                            const newSubQs = [...(questionForm.subQuestions || [])];
-                            newSubQs[idx] = { ...sq, correctAnswer: true };
-                            setQuestionForm({...questionForm, subQuestions: newSubQs});
+                            const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                            const newSubQs = [...currentSubs];
+                            if (newSubQs[idx]) {
+                              newSubQs[idx] = { ...sq, correctAnswer: true };
+                              setQuestionForm({...questionForm, subQuestions: newSubQs});
+                            }
                           }}
                           className="text-indigo-600 focus:ring-indigo-500"
                         />
@@ -1434,9 +1451,12 @@ HẾT ---`;
                           name={`tfAnswer-${sq.id}`}
                           checked={sq.correctAnswer === false}
                           onChange={() => {
-                            const newSubQs = [...(questionForm.subQuestions || [])];
-                            newSubQs[idx] = { ...sq, correctAnswer: false };
-                            setQuestionForm({...questionForm, subQuestions: newSubQs});
+                            const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                            const newSubQs = [...currentSubs];
+                            if (newSubQs[idx]) {
+                              newSubQs[idx] = { ...sq, correctAnswer: false };
+                              setQuestionForm({...questionForm, subQuestions: newSubQs});
+                            }
                           }}
                           className="text-indigo-600 focus:ring-indigo-500"
                         />
@@ -1628,7 +1648,10 @@ HẾT ---`;
                 />
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
-                    <p className="text-sm font-medium text-gray-900 line-clamp-2">{q.content}</p>
+                    <div 
+                      className="text-sm font-medium text-gray-900 line-clamp-2"
+                      dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                    />
                     <span className="text-xs font-medium text-indigo-600 whitespace-nowrap ml-2">{q.type === 'true_false' ? 1 : q.points} điểm</span>
                   </div>
                   <div className="flex gap-2 mt-1 text-xs text-gray-500">

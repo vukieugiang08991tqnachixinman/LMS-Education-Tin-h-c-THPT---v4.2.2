@@ -1519,7 +1519,10 @@ export const AssignmentManagement = () => {
                                         
                                         return (
                                           <div key={idx} className="text-sm">
-                                            <p className="font-medium text-gray-800">Câu {idx + 1}: {q.content}</p>
+                                            <div className="font-medium text-gray-800 flex gap-1">
+                                              <span>Câu {idx + 1}:</span>
+                                              <div dangerouslySetInnerHTML={{ __html: String(q.content || '') }} />
+                                            </div>
                                             {q.type === 'multiple_choice' && (
                                               <div className="mt-1 flex items-center gap-2">
                                                 <span className="text-gray-600">Học sinh chọn:</span>
@@ -1581,7 +1584,7 @@ export const AssignmentManagement = () => {
                                 {submission.part4Content && (
                                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                     <p className="text-[10px] font-bold text-indigo-600 uppercase mb-1">Phần IV: Tự luận</p>
-                                    <div className="text-sm text-slate-700 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-xl [&>h1]:font-bold [&>h2]:text-lg [&>h2]:font-bold" dangerouslySetInnerHTML={{ __html: submission.part4Content }} />
+                                    <div className="text-sm text-slate-700 [&>p]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5 [&>h1]:text-xl [&>h1]:font-bold [&>h2]:text-lg [&>h2]:font-bold" dangerouslySetInnerHTML={{ __html: String(submission.part4Content || '') }} />
                                   </div>
                                 )}
                                 {!submission.part1Content && !submission.part2Content && !submission.part3Content && !submission.part4Content && (
@@ -1918,7 +1921,10 @@ export const AssignmentManagement = () => {
                             )}
                           </div>
                         </div>
-                        <p className="text-gray-900 text-sm mb-2">{q.content}</p>
+                        <div 
+                          className="text-gray-900 text-sm mb-2"
+                          dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                        />
                         {q.type === 'multiple_choice' && (
                           <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
                             {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
@@ -1933,7 +1939,10 @@ export const AssignmentManagement = () => {
                             {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
                               <div key={i} className="text-sm flex items-start gap-2">
                                 <span className="font-medium text-gray-700">{sq.id})</span>
-                                <span className="text-gray-600 flex-1">{sq.content}</span>
+                                <div 
+                                  className="text-gray-600 flex-1"
+                                  dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
+                                />
                                 <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
                                   {sq.correctAnswer ? 'Đúng' : 'Sai'}
                                 </span>
@@ -2263,7 +2272,10 @@ export const AssignmentManagement = () => {
                             )}
                           </div>
                         </div>
-                        <p className="text-gray-900 text-sm mb-2">{q.content}</p>
+                        <div 
+                          className="text-gray-900 text-sm mb-2"
+                          dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                        />
                         {q.type === 'multiple_choice' && (
                           <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
                             {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
@@ -2278,7 +2290,10 @@ export const AssignmentManagement = () => {
                             {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
                               <div key={i} className="text-sm flex items-start gap-2">
                                 <span className="font-medium text-gray-700">{sq.id})</span>
-                                <span className="text-gray-600 flex-1">{sq.content}</span>
+                                <div 
+                                  className="text-gray-600 flex-1"
+                                  dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
+                                />
                                 <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
                                   {sq.correctAnswer ? 'Đúng' : 'Sai'}
                                 </span>
@@ -2367,14 +2382,15 @@ export const AssignmentManagement = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>
-            <textarea 
-              required
-              value={questionForm.content}
-              onChange={e => setQuestionForm({...questionForm, content: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              rows={3}
-              placeholder="Nhập nội dung câu hỏi..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+              <ReactQuill 
+                theme="snow"
+                value={questionForm.content || ''}
+                onChange={content => setQuestionForm({...questionForm, content})}
+                className="h-32 mb-12"
+                placeholder="Nhập nội dung câu hỏi..."
+              />
+            </div>
           </div>
 
           {questionForm.type === 'multiple_choice' && (
@@ -2409,7 +2425,7 @@ export const AssignmentManagement = () => {
           {questionForm.type === 'true_false' && (
             <div className="space-y-4">
               <label className="block text-sm font-medium text-gray-700">Các ý Đúng/Sai</label>
-              {(questionForm.subQuestions || []).map((sq, idx) => (
+              {(Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? (() => { try { return JSON.parse(questionForm.subQuestions); } catch { return []; } })() : [])).map((sq: any, idx: number) => (
                 <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm">Ý {sq.id})</span>
@@ -2420,7 +2436,8 @@ export const AssignmentManagement = () => {
                           name={`sq-${idx}`} 
                           checked={sq.correctAnswer === true}
                           onChange={() => {
-                            const newSubQs = [...(questionForm.subQuestions || [])];
+                            const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                            const newSubQs = [...currentSubs];
                             newSubQs[idx] = { ...sq, correctAnswer: true };
                             setQuestionForm({ ...questionForm, subQuestions: newSubQs });
                           }}
@@ -2432,7 +2449,8 @@ export const AssignmentManagement = () => {
                           name={`sq-${idx}`} 
                           checked={sq.correctAnswer === false}
                           onChange={() => {
-                            const newSubQs = [...(questionForm.subQuestions || [])];
+                            const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                            const newSubQs = [...currentSubs];
                             newSubQs[idx] = { ...sq, correctAnswer: false };
                             setQuestionForm({ ...questionForm, subQuestions: newSubQs });
                           }}
@@ -2440,18 +2458,20 @@ export const AssignmentManagement = () => {
                       </label>
                     </div>
                   </div>
-                  <input 
-                    type="text"
-                    required
-                    value={sq.content}
-                    onChange={e => {
-                      const newSubQs = [...(questionForm.subQuestions || [])];
-                      newSubQs[idx] = { ...sq, content: e.target.value };
-                      setQuestionForm({ ...questionForm, subQuestions: newSubQs });
-                    }}
-                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                    placeholder={`Nội dung ý ${sq.id}`}
-                  />
+                  <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+                    <ReactQuill 
+                      theme="snow"
+                      value={sq.content || ''}
+                      onChange={content => {
+                        const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                        const newSubQs = [...currentSubs];
+                        newSubQs[idx] = { ...sq, content };
+                        setQuestionForm({ ...questionForm, subQuestions: newSubQs });
+                      }}
+                      className="h-20 mb-10"
+                      placeholder={`Nhập nội dung ý ${sq.id})...`}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -2611,7 +2631,10 @@ export const AssignmentManagement = () => {
                         {q.difficulty === 'recognition' ? 'Nhận biết' : q.difficulty === 'understanding' ? 'Thông hiểu' : 'Vận dụng'}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-900 font-medium line-clamp-2">{q.content}</p>
+                    <div 
+                      className="text-sm text-gray-900 font-medium line-clamp-2"
+                      dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                    />
                     {q.type === 'multiple_choice' && q.options && (
                       <div className="mt-2 grid grid-cols-2 gap-2">
                         {q.options.map((opt, idx) => (

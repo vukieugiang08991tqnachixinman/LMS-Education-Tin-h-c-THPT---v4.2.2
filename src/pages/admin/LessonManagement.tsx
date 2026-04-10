@@ -1862,7 +1862,10 @@ const StudentProgressRow = ({ student, progress, lesson, onSaveFeedback }: { stu
             const answer = progress?.essayAnswers?.[q.id];
             return (
               <div key={`${q.id}-${idx}`} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <p className="text-sm font-medium text-gray-800 mb-2">Câu {idx + 1}: {q.content}</p>
+                <div 
+                  className="text-sm font-medium text-gray-800 mb-2"
+                  dangerouslySetInnerHTML={{ __html: `Câu ${idx + 1}: ${String(q.content || '')}` }}
+                />
                 {answer ? (
                   <div className="text-sm text-gray-600 bg-white p-2 rounded-lg border border-gray-200 whitespace-pre-wrap">
                     {answer}

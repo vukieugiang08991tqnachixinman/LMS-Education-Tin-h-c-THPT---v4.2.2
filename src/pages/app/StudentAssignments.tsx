@@ -619,7 +619,10 @@ export const StudentAssignments = () => {
                       </div>
                       <div className="flex-1 space-y-4">
                         <div>
-                          <p className="text-lg font-medium text-slate-800 leading-relaxed">{q.content}</p>
+                          <div 
+                            className="text-lg font-medium text-slate-800 leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                          />
                           <div className="flex gap-2 mt-2">
                             <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
                               {q.type === 'multiple_choice' ? 'Trắc nghiệm' : 
@@ -664,7 +667,10 @@ export const StudentAssignments = () => {
                           <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
                             <div className="flex gap-3">
                               <span className="font-bold text-slate-400">{String.fromCharCode(97 + i)})</span>
-                              <span className="text-slate-700 font-medium">{sq.content}</span>
+                              <span 
+                                className="text-slate-700 font-medium"
+                                dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
+                              />
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <button

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { dataProvider } from '../../core/provider';
 import { Announcement, Class } from '../../core/types';
 import { Modal } from '../../components/Modal';
@@ -86,7 +88,10 @@ export const Announcements: React.FC = () => {
                   Gửi đến: {getTargetLabel(ann.target)}
                 </span>
               </div>
-              <p className="text-sm sm:text-base text-gray-600 whitespace-pre-wrap break-words">{ann.content}</p>
+              <div 
+                className="text-sm sm:text-base text-gray-600 break-words"
+                dangerouslySetInnerHTML={{ __html: String(ann.content || '') }}
+              />
               <p className="text-[10px] sm:text-xs text-gray-400 mt-4">
                 Đăng lúc: {new Date(ann.createdAt).toLocaleString('vi-VN')}
               </p>
@@ -140,14 +145,15 @@ export const Announcements: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Nội dung</label>
-            <textarea 
-              required
-              rows={5}
-              value={formData.content}
-              onChange={e => setFormData({...formData, content: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 transition-all font-medium resize-none"
-              placeholder="Nhập nội dung thông báo..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border-2 border-gray-200 focus-within:ring-4 focus-within:ring-pink-500/20 focus-within:border-pink-500 transition-all">
+              <ReactQuill 
+                theme="snow"
+                value={formData.content || ''}
+                onChange={content => setFormData({...formData, content})}
+                className="h-48 mb-12"
+                placeholder="Nhập nội dung thông báo..."
+              />
+            </div>
           </div>
           <div className="pt-6 flex justify-end gap-3">
             <button 

@@ -783,7 +783,10 @@ export const LessonDetail = () => {
               </h3>
               {ensureArray(lesson.essayQuestions).map((question, index) => (
                 <div key={question.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                  <h4 className="text-md font-bold text-gray-900 mb-3">Câu {index + 1}: {question.content}</h4>
+                  <div 
+                    className="text-md font-bold text-gray-900 mb-3"
+                    dangerouslySetInnerHTML={{ __html: `Câu ${index + 1}: ${question.content}` }}
+                  />
                   <div className="space-y-3">
                     <textarea
                       value={essayAnswers[question.id] || ''}
@@ -855,9 +858,10 @@ export const LessonDetail = () => {
                         <div className="space-y-4">
                           <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                             <h5 className="text-sm font-bold text-gray-700 mb-2">Bài làm của bạn:</h5>
-                            <div className="text-gray-600 whitespace-pre-wrap text-sm">
-                              {submission.content || <span className="italic text-gray-400">Không có nội dung văn bản</span>}
-                            </div>
+                            <div 
+                              className="text-gray-600 whitespace-pre-wrap text-sm"
+                              dangerouslySetInnerHTML={{ __html: String(submission.content || '') }}
+                            />
                             {submission.fileName && (
                               <div className="mt-3 flex items-center gap-2">
                                 <span className="text-sm font-medium text-gray-700">File đính kèm:</span>

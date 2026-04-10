@@ -285,7 +285,10 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                     <span className="text-sm font-bold text-indigo-600 uppercase tracking-wider block mb-1">
                       Câu {idx + 1} - {q.type === 'multiple_choice' ? 'Trắc nghiệm' : q.type === 'true_false' ? 'Đúng/Sai' : q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
                     </span>
-                    <h4 className="font-medium text-gray-900">{q.content}</h4>
+                    <div 
+                      className="font-medium text-gray-900"
+                      dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                    />
                   </div>
                   <div className="shrink-0 ml-4 flex items-center gap-2">
                     <input 
@@ -308,7 +311,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                         const sAns = (studentAnswer || {})[sq.id];
                         return (
                           <div key={sq.id} className="flex justify-between items-center">
-                            <span><span className="font-medium">{sq.id})</span> {sq.content}</span>
+                            <span><span className="font-medium">{sq.id})</span> <span dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} /></span>
                             <div className="flex gap-4">
                               <span className="text-gray-500">HS chọn: <span className={sAns === sq.correctAnswer ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{sAns !== undefined ? (sAns ? 'Đúng' : 'Sai') : 'Trống'}</span></span>
                               <span className="text-gray-500">Đáp án: <span className="font-bold text-gray-900">{sq.correctAnswer ? 'Đúng' : 'Sai'}</span></span>
@@ -326,7 +329,10 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                       {q.correctAnswer && (
                         <div className="pt-2 border-t border-gray-200">
                           <span className="text-gray-500 block mb-1">Đáp án / Hướng dẫn chấm:</span>
-                          <p className="font-medium text-emerald-700 whitespace-pre-wrap">{String(q.correctAnswer)}</p>
+                          <div 
+                            className="font-medium text-emerald-700"
+                            dangerouslySetInnerHTML={{ __html: String(q.correctAnswer) }}
+                          />
                         </div>
                       )}
                     </div>

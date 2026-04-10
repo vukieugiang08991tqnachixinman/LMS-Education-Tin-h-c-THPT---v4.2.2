@@ -879,7 +879,7 @@ LƯU Ý:
                 <td className="py-4 px-6">
                   <div 
                     className="font-medium text-gray-900 line-clamp-2"
-                    dangerouslySetInnerHTML={{ __html: q.content }}
+                    dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
                   />
                   <div className="text-sm text-gray-500 mt-1">
                     {subjects.find(s => s.id === q.subjectId)?.name} 
@@ -1069,23 +1069,31 @@ LƯU Ý:
               {(Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? (() => { try { return JSON.parse(questionForm.subQuestions); } catch { return []; } })() : [])).map((sq: any, idx: number) => (
                 <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl">
                   <span className="font-bold w-6">{sq.id})</span>
-                  <input 
-                    type="text"
-                    value={sq.content}
-                    onChange={(e) => {
-                      const newSubs = [...(questionForm.subQuestions || [])];
-                      newSubs[idx].content = e.target.value;
-                      setQuestionForm({...questionForm, subQuestions: newSubs});
-                    }}
-                    placeholder={`Mệnh đề ${idx + 1}`}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                  <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+                    <ReactQuill 
+                      theme="snow"
+                      value={sq.content || ''}
+                      onChange={content => {
+                        const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                        const newSubs = [...currentSubs];
+                        if (newSubs[idx]) {
+                          newSubs[idx] = { ...newSubs[idx], content };
+                          setQuestionForm({...questionForm, subQuestions: newSubs});
+                        }
+                      }}
+                      className="h-20 mb-10"
+                      placeholder={`Mệnh đề ${idx + 1}`}
+                    />
+                  </div>
                   <select
                     value={sq.correctAnswer ? 'true' : 'false'}
                     onChange={(e) => {
-                      const newSubs = [...(questionForm.subQuestions || [])];
-                      newSubs[idx].correctAnswer = e.target.value === 'true';
-                      setQuestionForm({...questionForm, subQuestions: newSubs});
+                      const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                      const newSubs = [...currentSubs];
+                      if (newSubs[idx]) {
+                        newSubs[idx] = { ...newSubs[idx], correctAnswer: e.target.value === 'true' };
+                        setQuestionForm({...questionForm, subQuestions: newSubs});
+                      }
                     }}
                     className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
                   >
@@ -1096,9 +1104,12 @@ LƯU Ý:
                     type="text"
                     value={sq.explanation || ''}
                     onChange={(e) => {
-                      const newSubs = [...(questionForm.subQuestions || [])];
-                      newSubs[idx].explanation = e.target.value;
-                      setQuestionForm({...questionForm, subQuestions: newSubs});
+                      const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                      const newSubs = [...currentSubs];
+                      if (newSubs[idx]) {
+                        newSubs[idx] = { ...newSubs[idx], explanation: e.target.value };
+                        setQuestionForm({...questionForm, subQuestions: newSubs});
+                      }
                     }}
                     placeholder="Giải thích..."
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500"
@@ -1129,28 +1140,45 @@ LƯU Ý:
             </div>
           )}
 
-          {(questionForm.type === 'short_answer' || questionForm.type === 'essay') && (
+          {questionForm.type === 'short_answer' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án / Hướng dẫn chấm</label>
-              <textarea 
+              <label className="block text-sm font-medium text-gray-700 mb-1">Đáp án đúng</label>
+              <input 
+                type="text"
                 value={questionForm.correctAnswer as string || ''}
                 onChange={e => setQuestionForm({...questionForm, correctAnswer: e.target.value})}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                rows={3}
-                placeholder="Nhập đáp án hoặc các ý chính cần có để chấm điểm..."
+                placeholder="Nhập đáp án đúng..."
               />
+            </div>
+          )}
+
+          {questionForm.type === 'essay' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hướng dẫn chấm</label>
+              <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+                <ReactQuill 
+                  theme="snow"
+                  value={questionForm.correctAnswer as string || ''}
+                  onChange={content => setQuestionForm({...questionForm, correctAnswer: content})}
+                  className="h-32 mb-12"
+                  placeholder="Nhập hướng dẫn chấm điểm..."
+                />
+              </div>
             </div>
           )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Giải thích đáp án</label>
-            <textarea 
-              value={questionForm.explanation || ''}
-              onChange={e => setQuestionForm({...questionForm, explanation: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              rows={2}
-              placeholder="Nhập giải thích ngắn gọn cho đáp án..."
-            />
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+              <ReactQuill 
+                theme="snow"
+                value={questionForm.explanation || ''}
+                onChange={content => setQuestionForm({...questionForm, explanation: content})}
+                className="h-32 mb-12"
+                placeholder="Nhập giải thích chi tiết cho đáp án..."
+              />
+            </div>
           </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t">
@@ -1696,12 +1724,15 @@ LƯU Ý:
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium w-6">{String.fromCharCode(97 + sqIndex)})</span>
-                          <input
-                            type="text"
-                            value={sq.content}
-                            onChange={(e) => handlePreviewSubQuestionChange(qIndex, sqIndex, 'content', e.target.value)}
-                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                          />
+                          <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
+                            <ReactQuill 
+                              theme="snow"
+                              value={sq.content || ''}
+                              onChange={content => handlePreviewSubQuestionChange(qIndex, sqIndex, 'content', content)}
+                              className="h-20 mb-10"
+                              placeholder={`Nội dung ý ${sq.id}`}
+                            />
+                          </div>
                         </div>
                         <div className="flex items-center gap-4 pl-8">
                           <label className="flex items-center gap-1 text-sm">
@@ -1731,26 +1762,42 @@ LƯU Ý:
                 </div>
               )}
 
-              {(q.type === 'short_answer' || q.type === 'essay') && (
+              {q.type === 'short_answer' && (
                 <div className="mb-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Đáp án / Hướng dẫn chấm</label>
-                  <textarea
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Đáp án đúng</label>
+                  <input
+                    type="text"
                     value={q.correctAnswer}
                     onChange={(e) => handlePreviewChange(qIndex, 'correctAnswer', e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    rows={2}
                   />
+                </div>
+              )}
+
+              {q.type === 'essay' && (
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Hướng dẫn chấm</label>
+                  <div className="bg-white rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
+                    <ReactQuill 
+                      theme="snow"
+                      value={q.correctAnswer || ''}
+                      onChange={content => handlePreviewChange(qIndex, 'correctAnswer', content)}
+                      className="h-32 mb-12"
+                    />
+                  </div>
                 </div>
               )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Giải thích (Tùy chọn)</label>
-                <textarea
-                  value={q.explanation || ''}
-                  onChange={(e) => handlePreviewChange(qIndex, 'explanation', e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  rows={2}
-                />
+                <div className="bg-white rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
+                  <ReactQuill 
+                    theme="snow"
+                    value={q.explanation || ''}
+                    onChange={content => handlePreviewChange(qIndex, 'explanation', content)}
+                    className="h-32 mb-12"
+                  />
+                </div>
               </div>
             </div>
           ))}

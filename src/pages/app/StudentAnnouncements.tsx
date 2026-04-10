@@ -94,7 +94,10 @@ export const StudentAnnouncements: React.FC = () => {
                   </div>
                 </div>
                 
-                <p className="text-slate-600 whitespace-pre-wrap leading-relaxed text-lg">{ann.content}</p>
+                <div 
+                  className="text-slate-600 leading-relaxed text-lg"
+                  dangerouslySetInnerHTML={{ __html: String(ann.content || '') }}
+                />
                 
                 {idx === 0 && (
                   <div className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
