@@ -9,6 +9,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import { ensureArray } from '../../core/utils/data';
 
 export const TakeTest: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,8 +21,93 @@ export const TakeTest: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [violations, setViolations] = useState(0);
+  const [activityLog, setActivityLog] = useState<{time: string, event: string}[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showViolationWarning, setShowViolationWarning] = useState(false);
+  const [lastViolationMsg, setLastViolationMsg] = useState('');
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const addLog = (event: string) => {
+    const now = new Date().toLocaleTimeString();
+    setActivityLog(prev => [...prev, { time: now, event }]);
+  };
+
+  const enterFullscreen = () => {
+    if (containerRef.current) {
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !isSubmitting && test) {
+        setViolations(prev => prev + 1);
+        const msg = "Chuyển tab hoặc rời khỏi trình duyệt";
+        setLastViolationMsg(msg);
+        addLog(msg);
+        setShowViolationWarning(true);
+        toast.error('Cảnh báo: Không được rời khỏi trang làm bài!', { icon: '⚠️' });
+      }
+    };
+
+    const handleBlur = () => {
+      if (!isSubmitting && test) {
+        setViolations(prev => prev + 1);
+        const msg = "Mất tiêu điểm cửa sổ (có thể đang dùng ứng dụng khác)";
+        setLastViolationMsg(msg);
+        addLog(msg);
+        setShowViolationWarning(true);
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (!isFull && !isSubmitting && test) {
+        setViolations(prev => prev + 1);
+        const msg = "Thoát chế độ toàn màn hình";
+        setLastViolationMsg(msg);
+        addLog(msg);
+        setShowViolationWarning(true);
+      }
+    };
+
+    const preventShortcuts = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 'p')) {
+        e.preventDefault();
+        toast.error('Hành động bị cấm trong khi thi!');
+        return false;
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const preventContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', preventShortcuts);
+    window.addEventListener('contextmenu', preventContextMenu);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', preventShortcuts);
+      window.removeEventListener('contextmenu', preventContextMenu);
+    };
+  }, [isSubmitting, test]);
 
   useEffect(() => {
     const fetchTest = async () => {
@@ -30,7 +116,10 @@ export const TakeTest: React.FC = () => {
       try {
         const testData = await dataProvider.getOne<Test>('tests', id);
         if (testData && testData.questions) {
-          testData.questions = testData.questions.map(q => {
+          // Shuffle questions
+          let shuffledQuestions = [...ensureArray(testData.questions)].sort(() => Math.random() - 0.5);
+          
+          shuffledQuestions = shuffledQuestions.map(q => {
             let options = q.options;
             if (typeof options === 'string') {
               try { options = JSON.parse(options); } catch { options = []; }
@@ -39,8 +128,17 @@ export const TakeTest: React.FC = () => {
             if (typeof subQuestions === 'string') {
               try { subQuestions = JSON.parse(subQuestions); } catch { subQuestions = []; }
             }
-            return { ...q, options, subQuestions };
+            
+            // Shuffle options for multiple choice
+            let shuffledOptions = options;
+            if (q.type === 'multiple_choice' && Array.isArray(options)) {
+              shuffledOptions = [...options].sort(() => Math.random() - 0.5);
+            }
+
+            return { ...q, options: shuffledOptions, subQuestions };
           });
+          
+          testData.questions = shuffledQuestions;
         }
         setTest(testData);
         setTimeLeft(testData.durationMinutes * 60);
@@ -210,7 +308,11 @@ export const TakeTest: React.FC = () => {
         testId: test.id,
         studentId: currentUser.id,
         content: JSON.stringify(answers),
-        score: finalScore
+        score: finalScore,
+        feedback: JSON.stringify({
+          violations,
+          activityLog
+        })
       });
       
       // Award XP for test completion
@@ -253,7 +355,7 @@ export const TakeTest: React.FC = () => {
 
   if (!test) return null;
 
-  if (!test || !test.questions || test.questions.length === 0) {
+  if (!test || !Array.isArray(test.questions) || test.questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50 p-6">
         <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 text-center max-w-md">
@@ -272,11 +374,13 @@ export const TakeTest: React.FC = () => {
   }
 
   const currentQuestion = test.questions[currentQuestionIndex];
+  if (!currentQuestion) return null;
+
   const isLastQuestion = currentQuestionIndex === test.questions.length - 1;
   const progress = ((currentQuestionIndex + 1) / test.questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div ref={containerRef} className="min-h-screen bg-slate-50 pb-20 select-none">
       {/* Immersive Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -322,7 +426,7 @@ export const TakeTest: React.FC = () => {
               Danh sách câu hỏi
             </h3>
             <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-4 gap-3">
-              {test.questions.map((q, idx) => {
+              {ensureArray(test.questions).map((q, idx) => {
                 let isAnswered = false;
                 if (q.type === 'true_false' && q.subQuestions) {
                   const ans = answers[q.id] || {};
@@ -401,7 +505,7 @@ export const TakeTest: React.FC = () => {
               </div>
 
               <div className="flex-1 space-y-4">
-                {currentQuestion.type === 'multiple_choice' && currentQuestion.options?.map((opt: string, idx: number) => (
+                {currentQuestion.type === 'multiple_choice' && ensureArray(currentQuestion.options).map((opt: string, idx: number) => (
                   <label 
                     key={idx} 
                     className={`flex items-center gap-4 p-6 rounded-2xl border-2 cursor-pointer transition-all ${
@@ -429,9 +533,9 @@ export const TakeTest: React.FC = () => {
                   </label>
                 ))}
 
-                {currentQuestion.type === 'true_false' && currentQuestion.subQuestions && (
+                {currentQuestion.type === 'true_false' && (
                   <div className="space-y-6">
-                    {currentQuestion.subQuestions.map((sq, sqIdx) => (
+                    {ensureArray(currentQuestion.subQuestions).map((sq, sqIdx) => (
                       <div key={`${sq.id || 'sq'}-${sqIdx}`} className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex-1 text-lg font-medium text-slate-700 flex items-start">
                           <span className="text-indigo-600 font-black mr-3 shrink-0">{String.fromCharCode(97 + sqIdx)})</span>
@@ -551,6 +655,57 @@ export const TakeTest: React.FC = () => {
               Nộp bài ngay
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Fullscreen Overlay */}
+      {!isFullscreen && !loading && test && !isSubmitting && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-lg text-center border border-slate-100">
+            <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
+              <Timer size={40} />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 mb-4">Chế độ thi an toàn</h2>
+            <p className="text-slate-600 mb-10 text-lg leading-relaxed">
+              Để đảm bảo tính công bằng, bạn cần làm bài ở chế độ <span className="font-bold text-indigo-600">Toàn màn hình</span>. Mọi hành vi rời khỏi trang sẽ được ghi lại.
+            </p>
+            <button
+              onClick={enterFullscreen}
+              className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
+            >
+              Bắt đầu làm bài ngay
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Violation Warning Modal */}
+      <Modal
+        isOpen={showViolationWarning}
+        onClose={() => setShowViolationWarning(false)}
+        title="CẢNH BÁO VI PHẠM"
+      >
+        <div className="p-8 text-center">
+          <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle size={40} />
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 mb-2">Phát hiện hành vi bất thường!</h3>
+          <p className="text-rose-600 font-bold mb-4">Lần vi phạm thứ: {violations}</p>
+          <div className="bg-slate-50 p-4 rounded-2xl mb-8 text-slate-600 text-sm italic">
+            "{lastViolationMsg}"
+          </div>
+          <p className="text-slate-500 mb-8 leading-relaxed">
+            Hệ thống đã ghi nhận hành động này và sẽ báo cáo cho giáo viên. Vui lòng tập trung làm bài và không rời khỏi trình duyệt.
+          </p>
+          <button
+            onClick={() => {
+              setShowViolationWarning(false);
+              if (!isFullscreen) enterFullscreen();
+            }}
+            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all"
+          >
+            Tôi đã hiểu và cam kết không tái phạm
+          </button>
         </div>
       </Modal>
     </div>

@@ -5,6 +5,7 @@ import { Sparkles, Upload, Loader2, Save, CheckCircle, XCircle, AlertCircle } fr
 import { GoogleGenAI, Type } from '@google/genai';
 import { dataProvider } from '../../core/provider';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
+import { ensureArray } from '../../core/utils/data';
 
 interface SubmissionDetailModalProps {
   isOpen: boolean;
@@ -100,12 +101,12 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
       let prompt = `Bạn là một giáo viên chấm bài thi. Hãy chấm điểm bài làm của học sinh dựa trên câu hỏi và đáp án/hướng dẫn chấm.
       
       Danh sách các câu hỏi và đáp án:
-      ${test.questions.map((q, idx) => `
+      ${ensureArray(test.questions).map((q, idx) => `
       Câu ${idx + 1}:
       - ID: ${q.id}
       - Loại: ${q.type}
       - Nội dung câu hỏi: ${q.content}
-      - Đáp án/Hướng dẫn chấm: ${q.correctAnswer || (q.subQuestions ? JSON.stringify(q.subQuestions.map(sq => ({ id: sq.id, answer: sq.correctAnswer }))) : 'Không có')}
+      - Đáp án/Hướng dẫn chấm: ${q.correctAnswer || (q.subQuestions ? JSON.stringify(ensureArray(q.subQuestions).map(sq => ({ id: sq.id, answer: sq.correctAnswer }))) : 'Không có')}
       - Điểm tối đa: ${q.points}
       ${!uploadedFileBase64 ? `- Câu trả lời của học sinh: ${JSON.stringify(answers[q.id] || 'Không trả lời')}` : ''}
       `).join('\n')}
@@ -275,7 +276,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
         <div className="space-y-6">
           <h3 className="font-bold text-xl text-gray-900 border-b pb-2">Chi tiết các câu hỏi</h3>
           
-          {test.questions.map((q, idx) => {
+          {ensureArray(test.questions).map((q, idx) => {
             const studentAnswer = answers[q.id];
             
             return (
@@ -305,9 +306,9 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                 </div>
 
                 <div className="space-y-3 text-sm">
-                  {q.type === 'true_false' && q.subQuestions ? (
+                  {q.type === 'true_false' ? (
                     <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
-                      {q.subQuestions.map(sq => {
+                      {ensureArray(q.subQuestions).map(sq => {
                         const sAns = (studentAnswer || {})[sq.id];
                         return (
                           <div key={sq.id} className="flex justify-between items-center">

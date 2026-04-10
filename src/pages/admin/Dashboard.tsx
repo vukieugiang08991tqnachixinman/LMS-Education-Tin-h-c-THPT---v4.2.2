@@ -170,7 +170,7 @@ export const AdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {classes.map(cls => (
+                {classes.filter(Boolean).map(cls => (
                   <tr key={cls.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 font-medium text-gray-900">{cls.name}</td>
                     <td className="py-3 px-4 text-gray-600">{cls.grade}</td>
@@ -186,12 +186,12 @@ export const AdminDashboard: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Thông báo mới nhất</h3>
           <div className="space-y-4">
-            {announcements.map(ann => (
+            {announcements.filter(Boolean).map(ann => (
               <div key={ann.id} className="p-4 rounded-xl bg-gray-50 border border-gray-100">
                 <h4 className="font-semibold text-gray-900">{ann.title}</h4>
                 <p className="text-sm text-gray-600 mt-1 line-clamp-2">{ann.content}</p>
                 <p className="text-xs text-gray-400 mt-2">
-                  {new Date(ann.createdAt).toLocaleDateString('vi-VN')}
+                  {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                 </p>
               </div>
             ))}

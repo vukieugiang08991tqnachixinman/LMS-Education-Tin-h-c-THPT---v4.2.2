@@ -8,6 +8,7 @@ import { parseTruncatedJSON } from '../../utils/jsonUtils';
 import * as XLSX from 'xlsx';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import { ensureArray } from '../../core/utils/data';
 
 export const QuestionBank: React.FC = () => {
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
@@ -22,7 +23,6 @@ export const QuestionBank: React.FC = () => {
   // Modals
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [isAIGenModalOpen, setIsAIGenModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewQuestions, setPreviewQuestions] = useState<BankQuestion[]>([]);
@@ -45,7 +45,6 @@ export const QuestionBank: React.FC = () => {
 
   // AI Gen state
   const [aiPrompt, setAiPrompt] = useState('');
-  const [aiFile, setAiFile] = useState<File | null>(null);
   const [aiConfig, setAiConfig] = useState({
     subjectId: '',
     topicId: '',
@@ -58,66 +57,8 @@ export const QuestionBank: React.FC = () => {
 
   // Import state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedAnswerFile, setSelectedAnswerFile] = useState<File | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [importConfig, setImportConfig] = useState({ subjectId: '', topicId: '', type: '', difficulty: '' });
   const [excelImportConfig, setExcelImportConfig] = useState({ subjectId: '', topicId: '' });
-
-  const downloadTemplate = (type: 'question' | 'answer') => {
-    let content = '';
-    let filename = '';
-
-    if (type === 'question') {
-      content = `HƯỚNG DẪN ĐỊNH DẠNG FILE ĐỀ BÀI (PDF/DOCX)
-
-1. Cấu trúc câu hỏi trắc nghiệm:
-Câu 1: Nội dung câu hỏi...
-A. Lựa chọn 1
-B. Lựa chọn 2
-C. Lựa chọn 3
-D. Lựa chọn 4
-
-2. Cấu trúc câu hỏi Đúng/Sai:
-Câu 2: Nội dung câu hỏi...
-a) Mệnh đề 1
-b) Mệnh đề 2
-c) Mệnh đề 3
-d) Mệnh đề 4
-
-3. Cấu trúc câu hỏi tự luận/trả lời ngắn:
-Câu 3: Nội dung câu hỏi...
-
-LƯU Ý: 
-- Có thể ghi chú chủ đề ở đầu file: CHỦ ĐỀ: [Tên chủ đề]
-- Hệ thống sử dụng AI để nhận diện nên định dạng cần rõ ràng, rành mạch.`;
-      filename = 'mau_de_bai.txt';
-    } else {
-      content = `HƯỚNG DẪN ĐỊNH DẠNG FILE ĐÁP ÁN (PDF/DOCX)
-
-BẢNG ĐÁP ÁN
-1. A
-2. B
-3. C
-4. D
-5. Đúng - Sai - Đúng - Đúng (Cho câu hỏi Đúng/Sai)
-6. [Nội dung đáp án ngắn]
-
-LƯU Ý:
-- Số thứ tự đáp án phải khớp với số thứ tự câu hỏi trong file đề bài.
-- Đối với câu hỏi Đúng/Sai, liệt kê đáp án theo thứ tự các mệnh đề a, b, c, d.`;
-      filename = 'mau_dap_an.txt';
-    }
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   useEffect(() => {
     fetchData();
@@ -245,27 +186,7 @@ LƯU Ý:
       
       let parts: any[] = [];
       
-      if (aiFile) {
-        const fileReader = new FileReader();
-        const base64Promise = new Promise<string>((resolve) => {
-          fileReader.onload = () => {
-            const base64Data = (fileReader.result as string).split(',')[1];
-            resolve(base64Data);
-          };
-          fileReader.readAsDataURL(aiFile);
-        });
-        
-        const base64Data = await base64Promise;
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: "application/pdf"
-          }
-        });
-      }
-
-      const prompt = `Tạo ${aiConfig.count} câu hỏi kiểm tra ${aiFile ? 'dựa trên nội dung file PDF được cung cấp' : `về chủ đề: "${aiPrompt}"`}.
-      ${aiPrompt && aiFile ? `Yêu cầu bổ sung: ${aiPrompt}` : ''}
+      const prompt = `Tạo ${aiConfig.count} câu hỏi kiểm tra về chủ đề: "${aiPrompt}".
       
       BẠN PHẢI TẠO ĐÚNG SỐ LƯỢNG VÀ ĐỘ KHÓ NHƯ YÊU CẦU DƯỚI ĐÂY. KHÔNG ĐƯỢC THIẾU HOẶC THỪA:
       - Nhận biết: ${aiConfig.difficulties.recognition} câu
@@ -362,7 +283,6 @@ LƯU Ý:
       
       setIsAIGenModalOpen(false);
       setAiPrompt('');
-      setAiFile(null);
       fetchData();
       alert(`Đã tạo thành công ${generatedQuestions.length} câu hỏi!`);
     } catch (error) {
@@ -377,9 +297,13 @@ LƯU Ý:
     const wsData = [
       ['Loại câu hỏi', 'Mức độ', 'Nội dung câu hỏi', 'Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D', 'Đáp án đúng', 'Giải thích'],
       ['multiple_choice', 'recognition', 'Thủ đô của Việt Nam là gì?', 'Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'A', 'Hà Nội là thủ đô của nước CHXHCN Việt Nam.'],
+      ['trắc nghiệm', 'nhận biết', '2 + 2 bằng mấy?', '3', '4', '5', '6', 'B', 'Phép cộng cơ bản'],
       ['true_false', 'understanding', 'Chọn đúng sai cho các mệnh đề sau về máy tính:', 'RAM là bộ nhớ trong', 'ROM là bộ nhớ ngoài', 'CPU là bộ xử lý trung tâm', 'Bàn phím là thiết bị ra', 'Đúng, Sai, Đúng, Sai', 'RAM là bộ nhớ trong, ROM là bộ nhớ trong, CPU là bộ xử lý trung tâm, Bàn phím là thiết bị vào.'],
+      ['đúng/sai', 'thông hiểu', 'Các khẳng định sau đúng hay sai?', 'Trái đất hình vuông', 'Mặt trời mọc ở hướng Đông', 'Nước sôi ở 100 độ C', 'Con người có 3 lá phổi', 'Sai, Đúng, Đúng, Sai', 'Kiến thức cơ bản'],
       ['short_answer', 'application', 'Tính 2 + 2 = ?', '', '', '', '', '4', 'Phép cộng cơ bản'],
-      ['essay', 'application', 'Hãy viết một đoạn văn ngắn về mùa xuân.', '', '', '', '', 'Học sinh tự viết', 'Chấm theo ý']
+      ['trả lời ngắn', 'vận dụng', 'Đơn vị của lực là gì?', '', '', '', '', 'Newton', 'Vật lý'],
+      ['essay', 'application', 'Hãy viết một đoạn văn ngắn về mùa xuân.', '', '', '', '', 'Học sinh tự viết', 'Chấm theo ý'],
+      ['tự luận', 'vận dụng', 'Trình bày cảm nhận của em về bài thơ Sóng.', '', '', '', '', 'Học sinh tự viết', 'Ngữ văn']
     ];
     
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -402,260 +326,134 @@ LƯU Ý:
     try {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-        
-        // Skip header row
-        const rows = data.slice(1).filter(row => row.length > 0 && row[2]); // Must have content
-        
-        const newQuestionsPayloads: BankQuestion[] = rows.map((row, index) => {
-          const rawType = String(row[0] || '').toLowerCase();
-          const rawDifficulty = String(row[1] || '').toLowerCase();
+        try {
+          const dataBuffer = evt.target?.result;
+          if (!dataBuffer) throw new Error("Không thể đọc nội dung file");
           
-          const typeMap: Record<string, QuestionType> = {
-            'trắc nghiệm': 'multiple_choice',
-            'multiple_choice': 'multiple_choice',
-            'đúng/sai': 'true_false',
-            'true_false': 'true_false',
-            'trả lời ngắn': 'short_answer',
-            'short_answer': 'short_answer',
-            'tự luận': 'essay',
-            'essay': 'essay'
-          };
+          const wb = XLSX.read(dataBuffer, { type: 'array' });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+          
+          console.log("Excel data raw:", data);
 
-          const difficultyMap: Record<string, QuestionDifficulty> = {
-            'nhận biết': 'recognition',
-            'recognition': 'recognition',
-            'thông hiểu': 'understanding',
-            'understanding': 'understanding',
-            'vận dụng': 'application',
-            'application': 'application'
-          };
-
-          const type = typeMap[rawType] || 'multiple_choice';
-          const difficulty = difficultyMap[rawDifficulty] || 'recognition';
-          const content = row[2] || '';
-          const optA = row[3] || '';
-          const optB = row[4] || '';
-          const optC = row[5] || '';
-          const optD = row[6] || '';
-          const correctAnswerRaw = row[7] || '';
-          const explanation = row[8] || '';
-
-          const qId = `bq_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-
-          let options: string[] | undefined = undefined;
-          let correctAnswer: any = correctAnswerRaw;
-          let subQuestions: any[] | undefined = undefined;
-
-          if (type === 'multiple_choice') {
-            options = [optA, optB, optC, optD].filter(Boolean);
-            const ansLetter = correctAnswerRaw.trim().toUpperCase();
-            const ansIndex = ansLetter === 'A' ? 0 : ansLetter === 'B' ? 1 : ansLetter === 'C' ? 2 : ansLetter === 'D' ? 3 : -1;
-            correctAnswer = ansIndex !== -1 ? String(options[ansIndex]) : String(correctAnswerRaw);
-          } else if (type === 'true_false') {
-            // Parse true/false answers like "Đúng, Sai, Đúng, Sai" or "T, F, T, F" or "1, 0, 1, 0"
-            const ansParts = correctAnswerRaw.split(',').map((s: string) => s.trim().toLowerCase());
-            const getBool = (val: string) => val === 'đúng' || val === 't' || val === 'true' || val === '1';
-            
-            subQuestions = [
-              { id: `sq_${Date.now()}_1`, content: optA, correctAnswer: getBool(ansParts[0]), difficulty },
-              { id: `sq_${Date.now()}_2`, content: optB, correctAnswer: getBool(ansParts[1]), difficulty },
-              { id: `sq_${Date.now()}_3`, content: optC, correctAnswer: getBool(ansParts[2]), difficulty },
-              { id: `sq_${Date.now()}_4`, content: optD, correctAnswer: getBool(ansParts[3]), difficulty }
-            ].filter(sq => sq.content);
-            correctAnswer = undefined;
-          } else {
-            correctAnswer = String(correctAnswerRaw);
+          if (!data || data.length <= 1) {
+            throw new Error("File Excel trống hoặc chỉ có tiêu đề");
+          }
+          
+          // Skip header row
+          const rows = data.slice(1).filter(row => row && row.length > 0 && row[2]); // Must have content in column 3
+          
+          if (rows.length === 0) {
+            throw new Error("Không tìm thấy dữ liệu câu hỏi hợp lệ trong file Excel");
           }
 
-          return {
-            id: qId,
-            type: type as QuestionType,
-            difficulty: difficulty as QuestionDifficulty,
-            content,
-            options,
-            correctAnswer,
-            subQuestions,
-            explanation,
-            subjectId: excelImportConfig.subjectId,
-            topicId: excelImportConfig.topicId,
-            createdAt: new Date().toISOString(),
-            points: 1
-          };
-        });
+          const newQuestionsPayloads: BankQuestion[] = rows.map((row, index) => {
+            const rawType = String(row[0] || '').toLowerCase().trim();
+            const rawDifficulty = String(row[1] || '').toLowerCase().trim();
+            
+            const typeMap: Record<string, QuestionType> = {
+              'trắc nghiệm': 'multiple_choice',
+              'multiple_choice': 'multiple_choice',
+              'đúng/sai': 'true_false',
+              'true_false': 'true_false',
+              'trả lời ngắn': 'short_answer',
+              'short_answer': 'short_answer',
+              'tự luận': 'essay',
+              'essay': 'essay'
+            };
 
-        setPreviewQuestions(newQuestionsPayloads);
-        setIsExcelImportModalOpen(false);
-        setIsPreviewModalOpen(true);
-        setIsExtracting(false);
+            const difficultyMap: Record<string, QuestionDifficulty> = {
+              'nhận biết': 'recognition',
+              'recognition': 'recognition',
+              'thông hiểu': 'understanding',
+              'understanding': 'understanding',
+              'vận dụng': 'application',
+              'application': 'application'
+            };
+
+            const type = typeMap[rawType] || 'multiple_choice';
+            const difficulty = difficultyMap[rawDifficulty] || 'recognition';
+            const content = String(row[2] || '').trim();
+            const optA = String(row[3] || '').trim();
+            const optB = String(row[4] || '').trim();
+            const optC = String(row[5] || '').trim();
+            const optD = String(row[6] || '').trim();
+            const correctAnswerRaw = String(row[7] || '').trim();
+            const explanation = String(row[8] || '').trim();
+
+            const qId = `bq_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+
+            let options: string[] | undefined = undefined;
+            let correctAnswer: any = correctAnswerRaw;
+            let subQuestions: any[] | undefined = undefined;
+
+            if (type === 'multiple_choice') {
+              options = [optA, optB, optC, optD].filter(Boolean);
+              const ansLetter = correctAnswerRaw.toUpperCase();
+              const ansIndex = ansLetter === 'A' ? 0 : ansLetter === 'B' ? 1 : ansLetter === 'C' ? 2 : ansLetter === 'D' ? 3 : -1;
+              
+              if (ansIndex !== -1 && options[ansIndex]) {
+                correctAnswer = options[ansIndex];
+              } else {
+                // If not A,B,C,D, try to match the text directly
+                const foundIndex = options.findIndex(opt => opt.toLowerCase() === correctAnswerRaw.toLowerCase());
+                if (foundIndex !== -1) {
+                  correctAnswer = options[foundIndex];
+                } else {
+                  correctAnswer = correctAnswerRaw;
+                }
+              }
+            } else if (type === 'true_false') {
+              // Parse true/false answers like "Đúng, Sai, Đúng, Sai" or "T, F, T, F" or "1, 0, 1, 0"
+              const ansParts = correctAnswerRaw.split(/[,\s;|]+/).map((s: string) => s.trim().toLowerCase());
+              const getBool = (val: string) => val === 'đúng' || val === 't' || val === 'true' || val === '1' || val === 'đ' || val === 'yes' || val === 'y';
+              
+              subQuestions = [
+                { id: `sq_${Date.now()}_${index}_1`, content: optA, correctAnswer: getBool(ansParts[0] || ''), difficulty },
+                { id: `sq_${Date.now()}_${index}_2`, content: optB, correctAnswer: getBool(ansParts[1] || ''), difficulty },
+                { id: `sq_${Date.now()}_${index}_3`, content: optC, correctAnswer: getBool(ansParts[2] || ''), difficulty },
+                { id: `sq_${Date.now()}_${index}_4`, content: optD, correctAnswer: getBool(ansParts[3] || ''), difficulty }
+              ].filter(sq => sq.content);
+              correctAnswer = undefined;
+            } else {
+              correctAnswer = correctAnswerRaw;
+            }
+
+            return {
+              id: qId,
+              type: type as QuestionType,
+              difficulty: difficulty as QuestionDifficulty,
+              content,
+              options,
+              correctAnswer,
+              subQuestions,
+              explanation,
+              subjectId: excelImportConfig.subjectId,
+              topicId: excelImportConfig.topicId,
+              createdAt: new Date().toISOString(),
+              points: 1
+            };
+          });
+
+          setPreviewQuestions(newQuestionsPayloads);
+          setIsExcelImportModalOpen(false);
+          setIsPreviewModalOpen(true);
+        } catch (innerError: any) {
+          console.error("Error processing Excel data:", innerError);
+          alert(innerError.message || "Có lỗi xảy ra khi xử lý dữ liệu Excel.");
+        } finally {
+          setIsExtracting(false);
+        }
       };
-      reader.readAsBinaryString(selectedFile);
+      reader.onerror = () => {
+        setIsExtracting(false);
+        alert("Không thể đọc file Excel.");
+      };
+      reader.readAsArrayBuffer(selectedFile);
     } catch (error) {
       console.error("Error parsing Excel:", error);
       alert("Có lỗi xảy ra khi đọc file Excel. Vui lòng kiểm tra lại định dạng.");
-      setIsExtracting(false);
-    }
-  };
-
-  const handleImportQuestions = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile) return;
-    
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      alert('File PDF quá lớn (tối đa 10MB). Vui lòng chọn file nhỏ hơn.');
-      return;
-    }
-
-    setIsExtracting(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const fileReader = new FileReader();
-      fileReader.readAsDataURL(selectedFile);
-      
-      fileReader.onload = async () => {
-        const base64Data = (fileReader.result as string).split(',')[1];
-        
-        let contents: any = [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: "application/pdf"
-            }
-          },
-          { text: `Bạn là một chuyên gia khảo thí và xây dựng đề kiểm tra theo định dạng của Bộ Giáo dục và Đào tạo Việt Nam (Công văn 7991).
-          Nhiệm vụ của bạn là đọc, phân tích và trích xuất TOÀN BỘ các câu hỏi từ file PDF này một cách chính xác nhất. KHÔNG ĐƯỢC BỎ SÓT BẤT KỲ CÂU HỎI NÀO.
-          
-          Cấu trúc đề thi thường có 3 phần chính theo định dạng mới của Bộ GD&ĐT:
-          - Phần I: Câu hỏi trắc nghiệm nhiều lựa chọn (multiple_choice). Thường có 4 phương án A, B, C, D.
-          - Phần II: Câu hỏi trắc nghiệm Đúng/Sai (true_false). Đây là phần quan trọng nhất. 
-            Quy tắc cấu trúc câu hỏi Đúng/Sai:
-            1. Lệnh dẫn/Ngữ cảnh (content): Là phần văn bản nêu tình huống, đoạn mã code hoặc bảng dữ liệu chung.
-            2. Các ý lựa chọn (subQuestions): Luôn gồm 4 ý ký hiệu là a), b), c), d).
-            3. Đáp án (correctAnswer): Mỗi ý a, b, c, d chỉ nhận giá trị là true (Đúng) hoặc false (Sai).
-            + Bạn PHẢI trích xuất mỗi câu hỏi lớn này thành MỘT đối tượng JSON với type là 'true_false'.
-            + Mảng 'subQuestions' PHẢI chứa đầy đủ 4 ý a, b, c, d.
-          - Phần III: Câu hỏi trắc nghiệm trả lời ngắn (short_answer).
-          - Phần IV (nếu có): Tự luận (essay).
-
-          ${importConfig.type ? `\nCHÚ Ý QUAN TRỌNG: Người dùng đã chỉ định loại câu hỏi cần trích xuất là "${importConfig.type === 'multiple_choice' ? 'Trắc nghiệm nhiều lựa chọn (multiple_choice)' : importConfig.type === 'true_false' ? 'Đúng/Sai (true_false)' : importConfig.type === 'short_answer' ? 'Trả lời ngắn (short_answer)' : 'Tự luận (essay)'}". Bạn HÃY ƯU TIÊN trích xuất các câu hỏi thuộc loại này, và gán trường "type" tương ứng.` : ''}
-          ${importConfig.difficulty ? `\nCHÚ Ý QUAN TRỌNG: Người dùng đã chỉ định mức độ khó là "${importConfig.difficulty === 'recognition' ? 'Nhận biết (recognition)' : importConfig.difficulty === 'understanding' ? 'Thông hiểu (understanding)' : 'Vận dụng (application)'}". Bạn HÃY GÁN trường "difficulty" của TẤT CẢ các câu hỏi (và subQuestions nếu có) thành "${importConfig.difficulty}".` : ''}
-
-          Trả về mảng JSON các câu hỏi, bao gồm cả phần giải thích (explanation) ngắn gọn cho đáp án.
-          Định dạng JSON cho mỗi câu hỏi:
-          {
-            "id": "tạo_id_ngẫu_nhiên",
-            "type": "multiple_choice" | "true_false" | "short_answer" | "essay",
-            "difficulty": "recognition" | "understanding" | "application",
-            "content": "Nội dung câu hỏi (đối với Phần II là nội dung dẫn/Lệnh dẫn)",
-            "points": 1,
-            "explanation": "Giải thích đáp án chung",
-            "options": ["Lựa chọn 1", "Lựa chọn 2", "Lựa chọn 3", "Lựa chọn 4"], // Chỉ dành cho multiple_choice
-            "correctAnswer": "Nội dung chính xác của đáp án đúng (không phải A, B, C, D)", // Dành cho multiple_choice, short_answer, essay
-            "subQuestions": [ // BẮT BUỘC dành cho true_false, gồm 4 ý a, b, c, d
-              { "id": "a", "content": "Nội dung ý a", "correctAnswer": true, "explanation": "Giải thích tại sao đúng/sai", "difficulty": "recognition" },
-              { "id": "b", "content": "Nội dung ý b", "correctAnswer": false, "explanation": "Giải thích tại sao đúng/sai", "difficulty": "recognition" },
-              { "id": "c", "content": "Nội dung ý c", "correctAnswer": true, "explanation": "Giải thích tại sao đúng/sai", "difficulty": "recognition" },
-              { "id": "d", "content": "Nội dung ý d", "correctAnswer": false, "explanation": "Giải thích tại sao đúng/sai", "difficulty": "recognition" }
-            ]
-          }
-          
-          ĐỐI VỚI CÂU HỎI ĐÚNG/SAI (true_false):
-          - Quy tắc: 
-            1. Lệnh dẫn/Ngữ cảnh (content): Là phần văn bản nêu tình huống, đoạn mã code hoặc bảng dữ liệu chung.
-            2. Các ý lựa chọn (subQuestions): Luôn gồm 4 ý ký hiệu là a), b), c), d).
-            3. Đáp án (correctAnswer): Mỗi ý a, b, c, d chỉ nhận giá trị là true (Đúng) hoặc false (Sai).
-          - Hãy tìm các câu hỏi có cấu trúc: "Câu X. [Nội dung dẫn] ... a) [Ý 1] ... b) [Ý 2] ... c) [Ý 3] ... d) [Ý 4]".
-          - Mỗi câu hỏi lớn như vậy phải được trích xuất thành MỘT đối tượng JSON.
-          - Đảm bảo trích xuất đầy đủ nội dung của cả 4 ý nhỏ.` }
-        ];
-
-        if (selectedAnswerFile) {
-          const answerReader = new FileReader();
-          answerReader.readAsDataURL(selectedAnswerFile);
-          await new Promise(resolve => {
-            answerReader.onload = () => {
-              const ansBase64 = (answerReader.result as string).split(',')[1];
-              contents.splice(1, 0, {
-                inlineData: {
-                  data: ansBase64,
-                  mimeType: "application/pdf"
-                }
-              });
-              contents[2].text += `\n\nSử dụng file PDF thứ hai làm đáp án để điền vào trường correctAnswer. Đảm bảo trích xuất đầy đủ và chính xác tất cả các đáp án tương ứng với từng câu hỏi.`;
-              resolve(null);
-            };
-          });
-        }
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: { parts: contents },
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  type: { type: Type.STRING },
-                  difficulty: { type: Type.STRING },
-                  content: { type: Type.STRING },
-                  points: { type: Type.NUMBER },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  correctAnswer: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  subQuestions: { 
-                    type: Type.ARRAY, 
-                    items: { 
-                      type: Type.OBJECT,
-                      properties: {
-                        id: { type: Type.STRING },
-                        content: { type: Type.STRING },
-                        difficulty: { type: Type.STRING, description: "Mức độ: 'recognition', 'understanding', 'application'" },
-                        correctAnswer: { type: Type.BOOLEAN },
-                        explanation: { type: Type.STRING }
-                      }
-                    } 
-                  }
-                },
-                required: ["id", "type", "content"]
-              }
-            }
-          }
-        });
-
-        const jsonText = response.text || '[]';
-        const extractedQuestions = parseTruncatedJSON(jsonText);
-        
-        const newQuestionsPayloads = extractedQuestions.map((q: any, index: number) => ({
-          ...q,
-          type: importConfig.type || q.type,
-          difficulty: importConfig.difficulty || q.difficulty,
-          id: `bq_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-          subQuestions: q.subQuestions?.map((sq: any, sqIdx: number) => ({
-            ...sq,
-            difficulty: importConfig.difficulty || sq.difficulty,
-            id: `sq_${Date.now()}_${index}_${sqIdx}_${Math.random().toString(36).substr(2, 9)}`
-          })),
-          subjectId: importConfig.subjectId,
-          topicId: importConfig.topicId,
-          createdAt: new Date().toISOString()
-        }));
-
-        setPreviewQuestions(newQuestionsPayloads);
-        setIsImportModalOpen(false);
-        setIsPreviewModalOpen(true);
-        setIsExtracting(false);
-      };
-    } catch (error) {
-      console.error("Error extracting questions:", error);
-      alert("Có lỗi xảy ra khi trích xuất. Vui lòng thử lại.");
       setIsExtracting(false);
     }
   };
@@ -673,7 +471,6 @@ LƯU Ý:
       setIsPreviewModalOpen(false);
       setPreviewQuestions([]);
       setSelectedFile(null);
-      setSelectedAnswerFile(null);
       fetchData();
       alert(`Đã lưu thành công ${previewQuestions.length} câu hỏi!`);
     } catch (error) {
@@ -745,7 +542,7 @@ LƯU Ý:
   });
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-full mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Ngân hàng câu hỏi</h2>
@@ -757,12 +554,6 @@ LƯU Ý:
             className="flex items-center gap-2 px-4 py-2 text-emerald-700 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors font-medium"
           >
             <FileSpreadsheet size={20} /> Nhập từ Excel
-          </button>
-          <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-indigo-700 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors font-medium"
-          >
-            <Upload size={20} /> Nhập từ PDF
           </button>
           <button 
             onClick={() => setIsAIGenModalOpen(true)}
@@ -845,10 +636,10 @@ LƯU Ý:
 
       {/* Questions List */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-12 text-center">
+              <th className="py-3 px-4 text-sm font-semibold text-gray-600 w-10 text-center">
                 <input
                   type="checkbox"
                   checked={filteredQuestions.length > 0 && selectedQuestions.length === filteredQuestions.length}
@@ -856,18 +647,17 @@ LƯU Ý:
                   className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                 />
               </th>
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-16">ID</th>
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600">Nội dung</th>
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-32">Loại</th>
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-32">Mức độ</th>
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-24">Điểm</th>
-              <th className="py-3 px-6 text-sm font-semibold text-gray-600 w-24 text-right">Thao tác</th>
+              <th className="py-3 px-4 text-sm font-semibold text-gray-600 w-16">ID</th>
+              <th className="py-3 px-4 text-sm font-semibold text-gray-600">Nội dung</th>
+              <th className="py-3 px-4 text-sm font-semibold text-gray-600 w-28">Loại</th>
+              <th className="py-3 px-4 text-sm font-semibold text-gray-600 w-28">Mức độ</th>
+              <th className="py-3 px-4 text-sm font-semibold text-gray-600 w-24 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {filteredQuestions.length > 0 ? filteredQuestions.map((q, index) => (
               <tr key={`${q.id}-${index}`} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedQuestions.includes(q.id) ? 'bg-indigo-50/30' : ''}`}>
-                <td className="py-4 px-6 text-center">
+                <td className="py-3 px-4 text-center">
                   <input
                     type="checkbox"
                     checked={selectedQuestions.includes(q.id)}
@@ -875,22 +665,22 @@ LƯU Ý:
                     className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                   />
                 </td>
-                <td className="py-4 px-6 text-sm text-gray-500">...{q.id.substring(q.id.length - 4)}</td>
-                <td className="py-4 px-6">
+                <td className="py-3 px-4 text-xs text-gray-500">...{String(q.id || '').slice(-4)}</td>
+                <td className="py-3 px-4">
                   <div 
-                    className="font-medium text-gray-900 line-clamp-2"
+                    className="font-medium text-gray-900 line-clamp-1 text-sm"
                     dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
                   />
-                  <div className="text-sm text-gray-500 mt-1">
-                    {subjects.find(s => s.id === q.subjectId)?.name} 
-                    {q.topicId && ` - ${topics.find(t => t.id === q.topicId)?.name}`}
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    {subjects.find(s => s.id === q.subjectId)?.name || 'N/A'} 
+                    {q.topicId && ` - ${topics.find(t => t.id === q.topicId)?.name || 'N/A'}`}
                   </div>
                 </td>
-                <td className="py-4 px-6 text-sm">
+                <td className="py-3 px-4 text-xs">
                   {q.type === 'multiple_choice' ? 'Trắc nghiệm' : q.type === 'true_false' ? 'Đúng/Sai' : q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
                 </td>
-                <td className="py-4 px-6">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                <td className="py-3 px-4">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     q.difficulty === 'recognition' ? 'bg-blue-100 text-blue-800' :
                     q.difficulty === 'understanding' ? 'bg-amber-100 text-amber-800' :
                     'bg-purple-100 text-purple-800'
@@ -898,29 +688,26 @@ LƯU Ý:
                     {q.difficulty === 'recognition' ? 'Nhận biết' : q.difficulty === 'understanding' ? 'Thông hiểu' : 'Vận dụng'}
                   </span>
                 </td>
-                <td className="py-4 px-6 text-sm font-medium text-gray-900">
-                  {q.points}
-                </td>
-                <td className="py-4 px-6 text-right">
-                  <div className="flex justify-end gap-2">
+                <td className="py-3 px-4 text-right">
+                  <div className="flex justify-end gap-1">
                     <button 
                       onClick={() => handleOpenQuestionModal(q)}
-                      className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                     >
-                      <Edit2 size={18} />
+                      <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => setConfirmDelete(q.id)}
-                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-gray-500">Không tìm thấy câu hỏi nào.</td>
+                <td colSpan={6} className="py-8 text-center text-gray-500">Không tìm thấy câu hỏi nào.</td>
               </tr>
             )}
           </tbody>
@@ -985,19 +772,6 @@ LƯU Ý:
                 <option value="understanding">Thông hiểu</option>
                 <option value="application">Vận dụng</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Điểm số</label>
-              <input 
-                type="number" 
-                required
-                min={0}
-                step={0.01}
-                value={questionForm.type === 'true_false' ? 1 : questionForm.points}
-                onChange={e => setQuestionForm({...questionForm, points: Number(e.target.value)})}
-                disabled={questionForm.type === 'true_false'}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${questionForm.type === 'true_false' ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
-              />
             </div>
           </div>
 
@@ -1066,15 +840,15 @@ LƯU Ý:
           {questionForm.type === 'true_false' && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Các mệnh đề</label>
-              {(Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? (() => { try { return JSON.parse(questionForm.subQuestions); } catch { return []; } })() : [])).map((sq: any, idx: number) => (
+              {ensureArray(questionForm.subQuestions).map((sq: any, idx: number) => (
                 <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl">
-                  <span className="font-bold w-6">{sq.id})</span>
+                  <span className="font-bold w-6">{sq?.id || (idx + 1)})</span>
                   <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
                     <ReactQuill 
                       theme="snow"
-                      value={sq.content || ''}
+                      value={sq?.content || ''}
                       onChange={content => {
-                        const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                        const currentSubs = ensureArray(questionForm.subQuestions);
                         const newSubs = [...currentSubs];
                         if (newSubs[idx]) {
                           newSubs[idx] = { ...newSubs[idx], content };
@@ -1086,9 +860,9 @@ LƯU Ý:
                     />
                   </div>
                   <select
-                    value={sq.correctAnswer ? 'true' : 'false'}
+                    value={sq?.correctAnswer ? 'true' : 'false'}
                     onChange={(e) => {
-                      const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
+                      const currentSubs = ensureArray(questionForm.subQuestions);
                       const newSubs = [...currentSubs];
                       if (newSubs[idx]) {
                         newSubs[idx] = { ...newSubs[idx], correctAnswer: e.target.value === 'true' };
@@ -1235,36 +1009,13 @@ LƯU Ý:
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề / Yêu cầu bổ sung</label>
             <textarea 
-              required={!aiFile}
+              required
               value={aiPrompt}
               onChange={e => setAiPrompt(e.target.value)}
-              placeholder={aiFile ? "Nhập yêu cầu bổ sung (VD: Tập trung vào phần X, tạo câu hỏi khó...)" : "VD: Các thành phần cơ bản của máy tính, hệ điều hành Windows..."}
+              placeholder="VD: Các thành phần cơ bản của máy tính, hệ điều hành Windows..."
               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               rows={3}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hoặc tải lên file PDF nội dung (Tùy chọn)</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors">
-              <div className="space-y-1 text-center">
-                <Upload className="mx-auto h-10 w-10 text-gray-400" />
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <label htmlFor="ai-file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                    <span>{aiFile ? aiFile.name : 'Tải lên file PDF'}</span>
-                    <input 
-                      id="ai-file-upload" 
-                      name="ai-file-upload" 
-                      type="file" 
-                      className="sr-only" 
-                      accept=".pdf" 
-                      onChange={(e) => setAiFile(e.target.files?.[0] || null)}
-                    />
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500">AI sẽ dựa vào nội dung file để tạo câu hỏi</p>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
@@ -1340,7 +1091,7 @@ LƯU Ý:
             </button>
             <button 
               type="submit"
-              disabled={isGenerating || (!aiPrompt && !aiFile) || !aiConfig.subjectId}
+              disabled={isGenerating || !aiPrompt || !aiConfig.subjectId}
               className="flex items-center gap-2 px-4 py-2 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
             >
               {isGenerating ? (
@@ -1353,175 +1104,6 @@ LƯU Ý:
                   <Sparkles size={18} />
                   <span>Tạo câu hỏi</span>
                 </>
-              )}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Import PDF Modal */}
-      <Modal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        title="Nhập câu hỏi từ file PDF"
-      >
-        <form onSubmit={handleImportQuestions} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Môn học</label>
-              <select 
-                required
-                value={importConfig.subjectId}
-                onChange={e => setImportConfig({...importConfig, subjectId: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Chọn môn học</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
-              <select 
-                value={importConfig.topicId}
-                onChange={e => setImportConfig({...importConfig, topicId: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Chọn chủ đề</option>
-                {topics.filter(t => !importConfig.subjectId || t.subjectId === importConfig.subjectId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
-              <select 
-                value={importConfig.type}
-                onChange={e => setImportConfig({...importConfig, type: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Tự động nhận diện</option>
-                <option value="multiple_choice">Trắc nghiệm nhiều lựa chọn</option>
-                <option value="true_false">Đúng/Sai</option>
-                <option value="short_answer">Trả lời ngắn</option>
-                <option value="essay">Tự luận</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mức độ</label>
-              <select 
-                value={importConfig.difficulty}
-                onChange={e => setImportConfig({...importConfig, difficulty: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Tự động nhận diện</option>
-                <option value="recognition">Nhận biết</option>
-                <option value="understanding">Thông hiểu</option>
-                <option value="application">Vận dụng</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">1. File đề bài (Bắt buộc)</label>
-                <button 
-                  type="button"
-                  onClick={() => downloadTemplate('question')}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
-                >
-                  <Download size={14} /> Tải file mẫu
-                </button>
-              </div>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors">
-                <div className="space-y-1 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600 justify-center">
-                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                      <span>{selectedFile ? selectedFile.name : 'Tải lên file PDF'}</span>
-                      <input 
-                        id="file-upload" 
-                        name="file-upload" 
-                        type="file" 
-                        className="sr-only" 
-                        accept=".pdf" 
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                        disabled={isExtracting}
-                      />
-                    </label>
-                    {!selectedFile && <p className="pl-1">hoặc kéo thả vào đây</p>}
-                  </div>
-                  <p className="text-xs text-gray-500">Chỉ hỗ trợ file PDF</p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">2. File đáp án (Tùy chọn)</label>
-                <button 
-                  type="button"
-                  onClick={() => downloadTemplate('answer')}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
-                >
-                  <Download size={14} /> Tải file mẫu
-                </button>
-              </div>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors">
-                <div className="space-y-1 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600 justify-center">
-                    <label htmlFor="answer-file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                      <span>{selectedAnswerFile ? selectedAnswerFile.name : 'Tải lên file PDF đáp án'}</span>
-                      <input 
-                        id="answer-file-upload" 
-                        name="answer-file-upload" 
-                        type="file" 
-                        className="sr-only" 
-                        accept=".pdf" 
-                        onChange={(e) => setSelectedAnswerFile(e.target.files?.[0] || null)}
-                        disabled={isExtracting}
-                      />
-                    </label>
-                    {!selectedAnswerFile && <p className="pl-1">hoặc kéo thả vào đây</p>}
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Hệ thống sẽ dùng AI để tự động trích xuất câu hỏi và đáp án từ các file này.</p>
-            </div>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
-            <h4 className="text-xs font-bold text-amber-800 mb-1 flex items-center gap-1">
-              <FileText size={14} /> Hướng dẫn định dạng nhanh:
-            </h4>
-            <ul className="text-[10px] text-amber-700 space-y-1 list-disc pl-4">
-              <li><b>Trắc nghiệm:</b> Câu 1: ... A. ... B. ... C. ... D. ...</li>
-              <li><b>Đúng/Sai:</b> Câu 2: ... a) ... b) ... c) ... d) ...</li>
-              <li><b>Đáp án:</b> Bảng đáp án: 1. A, 2. B, 3. Đúng - Sai...</li>
-              <li>Nên sử dụng file PDF có văn bản rõ ràng để AI trích xuất tốt nhất.</li>
-            </ul>
-          </div>
-          
-          <div className="pt-4 flex justify-end gap-3 border-t">
-            <button 
-              type="button" 
-              onClick={() => setIsImportModalOpen(false)}
-              disabled={isExtracting}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
-            >
-              Hủy
-            </button>
-            <button 
-              type="submit"
-              disabled={isExtracting || !selectedFile || !importConfig.subjectId}
-              className="flex items-center gap-2 px-4 py-2 text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
-            >
-              {isExtracting ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span>Đang trích xuất...</span>
-                </>
-              ) : (
-                <span>Bắt đầu trích xuất</span>
               )}
             </button>
           </div>
@@ -1695,7 +1277,7 @@ LƯU Ý:
               {q.type === 'multiple_choice' && (
                 <div className="space-y-2 mb-4">
                   <label className="block text-xs font-medium text-gray-700">Các lựa chọn & Đáp án đúng</label>
-                  {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, optIndex: number) => (
+                  {ensureArray(q.options).map((opt: string, optIndex: number) => (
                     <div key={optIndex} className="flex items-center gap-2">
                       <input
                         type="radio"
@@ -1719,7 +1301,7 @@ LƯU Ý:
               {q.type === 'true_false' && (
                 <div className="space-y-3 mb-4">
                   <label className="block text-xs font-medium text-gray-700">Các mệnh đề Đúng/Sai</label>
-                  {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, sqIndex: number) => (
+                  {ensureArray(q.subQuestions).map((sq: any, sqIndex: number) => (
                     <div key={sqIndex} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">

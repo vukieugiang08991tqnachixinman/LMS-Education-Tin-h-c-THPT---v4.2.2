@@ -50,8 +50,8 @@ export const TestSubmissions: React.FC = () => {
   if (!test) return <div className="min-h-screen flex items-center justify-center">Đang tải...</div>;
 
   const filteredSubmissions = submissions.filter(sub => 
-    sub.student?.name?.toLowerCase()?.includes(search.toLowerCase()) ||
-    sub.class?.name?.toLowerCase()?.includes(search.toLowerCase())
+    (sub.student?.fullName || sub.student?.username || '').toLowerCase().includes(search.toLowerCase()) ||
+    (sub.class?.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -98,7 +98,7 @@ export const TestSubmissions: React.FC = () => {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Tổng số câu hỏi</p>
-            <p className="text-2xl font-bold text-gray-900">{test.questions.length}</p>
+            <p className="text-2xl font-bold text-gray-900">{test.questions?.length || 0}</p>
           </div>
         </div>
       </div>
@@ -132,13 +132,13 @@ export const TestSubmissions: React.FC = () => {
               {filteredSubmissions.length > 0 ? filteredSubmissions.map(sub => (
                 <tr key={sub.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-6 font-medium text-gray-900">
-                    {sub.student?.name || 'Học sinh ẩn danh'}
+                    {sub.student?.fullName || sub.student?.username || 'Học sinh ẩn danh'}
                   </td>
                   <td className="py-4 px-6 text-gray-600">
                     {sub.class?.name || 'Không có lớp'}
                   </td>
                   <td className="py-4 px-6 text-gray-600">
-                    {new Date(sub.submittedAt).toLocaleString('vi-VN')}
+                    {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('vi-VN') : 'N/A'}
                   </td>
                   <td className="py-4 px-6">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-bold ${

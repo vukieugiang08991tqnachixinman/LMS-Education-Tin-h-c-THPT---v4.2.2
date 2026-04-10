@@ -1532,9 +1532,9 @@ export const AssignmentManagement = () => {
                                                 <span className="text-gray-400 text-xs">(Đáp án: {q.correctAnswer})</span>
                                               </div>
                                             )}
-                                            {q.type === 'true_false' && q.subQuestions && (
+                                            {q.type === 'true_false' && (
                                               <div className="mt-1 pl-4 space-y-1">
-                                                {q.subQuestions.map((sq: any, i: number) => {
+                                                {ensureArray(q.subQuestions).map((sq: any, i: number) => {
                                                   const sqAns = studentAns ? studentAns[sq.id] : undefined;
                                                   return (
                                                     <div key={i} className="flex items-center gap-2">
@@ -1927,7 +1927,7 @@ export const AssignmentManagement = () => {
                         />
                         {q.type === 'multiple_choice' && (
                           <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
-                            {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
+                            {ensureArray(q.options).map((opt: string, i: number) => (
                               <li key={i} className={opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}>
                                 {opt}
                               </li>
@@ -1936,7 +1936,7 @@ export const AssignmentManagement = () => {
                         )}
                         {q.type === 'true_false' && (
                           <div className="mt-2 space-y-1">
-                            {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
+                            {ensureArray(q.subQuestions).map((sq: any, i: number) => (
                               <div key={i} className="text-sm flex items-start gap-2">
                                 <span className="font-medium text-gray-700">{sq.id})</span>
                                 <div 
@@ -2278,7 +2278,7 @@ export const AssignmentManagement = () => {
                         />
                         {q.type === 'multiple_choice' && (
                           <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
-                            {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
+                            {ensureArray(q.options).map((opt: string, i: number) => (
                               <li key={i} className={opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}>
                                 {opt}
                               </li>
@@ -2287,7 +2287,7 @@ export const AssignmentManagement = () => {
                         )}
                         {q.type === 'true_false' && (
                           <div className="mt-2 space-y-1">
-                            {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
+                            {ensureArray(q.subQuestions).map((sq: any, i: number) => (
                               <div key={i} className="text-sm flex items-start gap-2">
                                 <span className="font-medium text-gray-700">{sq.id})</span>
                                 <div 
@@ -2635,9 +2635,9 @@ export const AssignmentManagement = () => {
                       className="text-sm text-gray-900 font-medium line-clamp-2"
                       dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
                     />
-                    {q.type === 'multiple_choice' && q.options && (
+                    {q.type === 'multiple_choice' && (
                       <div className="mt-2 grid grid-cols-2 gap-2">
-                        {q.options.map((opt, idx) => (
+                        {ensureArray(q.options).map((opt, idx) => (
                           <div key={idx} className="text-xs text-gray-600 flex items-center gap-1">
                             <span className="font-medium">{['A', 'B', 'C', 'D', 'E', 'F'][idx]}.</span> {opt}
                           </div>

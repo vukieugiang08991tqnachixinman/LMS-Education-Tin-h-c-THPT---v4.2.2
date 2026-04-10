@@ -870,7 +870,7 @@ const LessonManagement = () => {
             disabled={!filterGrade}
           >
             <option value="">Tất cả</option>
-            {filteredClassesForList.map(c => (
+            {ensureArray(filteredClassesForList).map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
@@ -897,7 +897,7 @@ const LessonManagement = () => {
             disabled={!filterSubjectId}
           >
             <option value="">Tất cả</option>
-            {filterTopicsForList.map(t => (
+            {ensureArray(filterTopicsForList).map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
@@ -938,7 +938,7 @@ const LessonManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredLessons.map(lesson => {
+            {ensureArray(filteredLessons).map(lesson => {
               const topic = topics.find(t => t.id === lesson.topicId);
               const cls = classes.find(c => String(c.id) === String(lesson.classId));
               return (
@@ -1071,7 +1071,7 @@ const LessonManagement = () => {
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               >
                 <option value="">-- Tất cả lớp --</option>
-                {filteredClassesForForm.map(c => (
+                {ensureArray(filteredClassesForForm).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -1108,7 +1108,7 @@ const LessonManagement = () => {
                 required
               >
                 <option value="">-- Chọn môn học --</option>
-                {subjects.map(s => (
+                {ensureArray(subjects).map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
@@ -1123,7 +1123,7 @@ const LessonManagement = () => {
                 disabled={!formData.subjectId}
               >
                 <option value="">-- Chọn chủ đề --</option>
-                {filteredTopics.map(t => (
+                {ensureArray(filteredTopics).map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
@@ -1493,7 +1493,7 @@ const LessonManagement = () => {
                   Không có học sinh nào trong danh sách được giao.
                 </div>
               ) : (
-                filteredStudentsForGrading.map(student => {
+                ensureArray(filteredStudentsForGrading).map(student => {
                   const progress = lessonProgresses.find(p => p.studentId === student.id);
                   return (
                     <StudentProgressRow 
@@ -1517,7 +1517,7 @@ const LessonManagement = () => {
               </h3>
               
               <div className="space-y-6">
-                {lessonAssignments.map(assignment => {
+                {ensureArray(lessonAssignments).map(assignment => {
                   const submissions = lessonSubmissions.filter(s => s.assignmentId === assignment.id);
                   
                   return (
@@ -1533,7 +1533,7 @@ const LessonManagement = () => {
                             Chưa có học sinh nào nộp bài.
                           </div>
                         ) : (
-                          submissions.map(submission => {
+                          ensureArray(submissions).map(submission => {
                             const student = students.find(s => s.id === submission.studentId);
                             const isEditing = editingSubmissionId === submission.id;
                             
@@ -1858,7 +1858,7 @@ const StudentProgressRow = ({ student, progress, lesson, onSaveFeedback }: { stu
       {lesson?.essayQuestions && lesson.essayQuestions.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-50 space-y-3">
           <p className="text-xs font-bold text-gray-500 uppercase">Câu hỏi tự luận</p>
-          {lesson.essayQuestions.map((q, idx) => {
+          {ensureArray(lesson.essayQuestions).map((q, idx) => {
             const answer = progress?.essayAnswers?.[q.id];
             return (
               <div key={`${q.id}-${idx}`} className="bg-gray-50 rounded-xl p-3 border border-gray-100">

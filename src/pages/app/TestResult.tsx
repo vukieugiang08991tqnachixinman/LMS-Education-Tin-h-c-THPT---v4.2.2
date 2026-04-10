@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { dataProvider } from '../../core/provider';
 import { Test, Submission } from '../../core/types';
 import { CheckCircle, XCircle, AlertCircle, ArrowLeft, Trophy, Target, Clock, Calendar, Sparkles } from 'lucide-react';
+import { ensureArray } from '../../core/utils/data';
 
 export const TestResult: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +24,7 @@ export const TestResult: React.FC = () => {
       try {
         const testData = await dataProvider.getOne<Test>('tests', id);
         if (testData && testData.questions) {
-          testData.questions = testData.questions.map(q => {
+          testData.questions = ensureArray(testData.questions).map(q => {
             let options = q.options;
             if (typeof options === 'string') {
               try { options = JSON.parse(options); } catch { options = []; }
@@ -191,7 +192,7 @@ export const TestResult: React.FC = () => {
           </div>
           
           <div className="space-y-8">
-            {test.questions.map((q, idx) => {
+            {ensureArray(test.questions).map((q, idx) => {
               const studentAnswer = answers[q.id];
               const isAIGraded = (q.type === 'short_answer' || q.type === 'essay') && answers[`${q.id}_score`] !== undefined;
               const aiScore = answers[`${q.id}_score`];
@@ -273,9 +274,9 @@ export const TestResult: React.FC = () => {
                   </div>
 
                   <div className="space-y-4">
-                    {q.type === 'true_false' && q.subQuestions ? (
+                    {q.type === 'true_false' ? (
                       <div className="grid grid-cols-1 gap-3">
-                        {q.subQuestions.map((sq, sqIndex) => {
+                        {ensureArray(q.subQuestions).map((sq, sqIndex) => {
                           const sAns = (studentAnswer || {})[sq.id];
                           const isSubCorrect = sAns === sq.correctAnswer;
                           return (

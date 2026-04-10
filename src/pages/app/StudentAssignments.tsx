@@ -9,6 +9,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import { GoogleGenAI, Type } from "@google/genai";
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import { ensureArray } from '../../core/utils/data';
 
 export const StudentAssignments = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -442,7 +443,7 @@ export const StudentAssignments = () => {
                       <div className="space-y-2">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tài liệu đính kèm</p>
                         <div className="flex flex-wrap gap-2">
-                          {attachments.map((att: string, idx: number) => (
+                          {ensureArray(assignment.attachments).map((att: string, idx: number) => (
                             <a 
                               key={idx}
                               href={att}
@@ -588,7 +589,7 @@ export const StudentAssignments = () => {
                 <div className="space-y-3 mb-6">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tài liệu tham khảo</p>
                   <div className="flex flex-wrap gap-3">
-                    {attachments.map((att: any, idx: number) => (
+                    {ensureArray(attachments).map((att: any, idx: number) => (
                       <a 
                         key={idx}
                         href={att}
@@ -611,7 +612,7 @@ export const StudentAssignments = () => {
             {selectedAssignment?.questions && selectedAssignment.questions.length > 0 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Danh sách câu hỏi</h3>
-                {selectedAssignment.questions.map((q, idx) => (
+                {ensureArray(selectedAssignment.questions).map((q, idx) => (
                   <div key={`${q.id || 'q'}-${idx}`} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
                     <div className="flex gap-3">
                       <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
@@ -635,7 +636,7 @@ export const StudentAssignments = () => {
                           </div>
                         </div>
 
-                        {q.type === 'multiple_choice' && q.options?.map((opt: string, i: number) => (
+                        {q.type === 'multiple_choice' && ensureArray(q.options).map((opt: string, i: number) => (
                           <label 
                             key={i} 
                             className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -663,7 +664,7 @@ export const StudentAssignments = () => {
                           </label>
                         ))}
 
-                        {q.type === 'true_false' && q.subQuestions?.map((sq: any, i: number) => (
+                        {q.type === 'true_false' && ensureArray(q.subQuestions).map((sq: any, i: number) => (
                           <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
                             <div className="flex gap-3">
                               <span className="font-bold text-slate-400">{String.fromCharCode(97 + i)})</span>

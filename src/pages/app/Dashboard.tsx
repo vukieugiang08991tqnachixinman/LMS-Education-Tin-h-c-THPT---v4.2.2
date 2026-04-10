@@ -25,10 +25,14 @@ export const StudentDashboard: React.FC = () => {
       ]);
       const currentUser = dataProvider.getCurrentUser();
       const filteredAnn = ann.filter(a => 
-        a.target === 'all' || 
+        a && (a.target === 'all' || 
         a.target === 'students' || 
-        (currentUser?.classId && a.target === currentUser.classId)
-      ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        (currentUser?.classId && a.target === currentUser.classId))
+      ).sort((a, b) => {
+        const dateA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
       
       const uClass = classes.find(c => String(c.id) === String(currentUser?.classId));
       
@@ -278,7 +282,7 @@ export const StudentDashboard: React.FC = () => {
             </button>
           </div>
           <div className="space-y-3">
-            {lessons.slice(0, 2).map(lesson => {
+            {lessons.slice(0, 2).filter(Boolean).map(lesson => {
               const topic = topics.find(t => t.id === lesson.topicId);
               return (
                 <div 
@@ -290,7 +294,7 @@ export const StudentDashboard: React.FC = () => {
                     <BookOpen size={24} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mb-0.5">{topic?.name}</p>
+                    <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mb-0.5">{topic?.name || 'Chủ đề'}</p>
                     <h4 className="font-bold text-slate-900 truncate">{lesson.title}</h4>
                   </div>
                   <div className="hidden sm:block">
@@ -313,13 +317,13 @@ export const StudentDashboard: React.FC = () => {
             <h3 className="text-xl font-black text-violet-900">📢 Thông báo mới</h3>
           </div>
           <div className="space-y-6">
-            {announcements.slice(0, 3).map(ann => (
+            {announcements.slice(0, 3).filter(Boolean).map(ann => (
               <div key={ann.id} className="relative pl-6 border-l-2 border-violet-300 hover:border-violet-500 transition-colors">
                 <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-violet-500"></div>
                 <h4 className="font-bold text-violet-900 text-sm mb-1">{ann.title}</h4>
                 <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">{ann.content}</p>
                 <p className="text-[10px] text-violet-500 mt-2 font-black uppercase tracking-widest">
-                  {new Date(ann.createdAt).toLocaleDateString('vi-VN')}
+                  {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                 </p>
               </div>
             ))}
@@ -343,13 +347,13 @@ export const StudentDashboard: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {assignments.slice(0, 2).map(assignment => (
+            {assignments.slice(0, 2).filter(Boolean).map(assignment => (
               <div key={assignment.id} className="p-5 rounded-[2rem] bg-white border border-amber-100 flex flex-col justify-between group hover:shadow-xl hover:border-amber-200 transition-all cursor-pointer" onClick={() => navigate('/app/assignments')}>
                 <div>
                   <h4 className="font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-amber-600 transition-colors">{assignment.title}</h4>
                   <div className="flex items-center gap-2 text-[10px] text-slate-500 font-black uppercase tracking-widest">
                     <Clock size={12} className="text-amber-500" />
-                    <span>Hạn: {new Date(assignment.dueDate).toLocaleDateString('vi-VN')}</span>
+                    <span>Hạn: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('vi-VN') : 'N/A'}</span>
                   </div>
                 </div>
                 <div className="mt-6 flex items-center justify-between">

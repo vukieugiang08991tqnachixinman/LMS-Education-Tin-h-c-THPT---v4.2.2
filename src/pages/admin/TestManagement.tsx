@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { dataProvider } from '../../core/provider';
 import { Test, Class, Topic, Question, QuestionType, BankQuestion, Subject } from '../../core/types';
 import { Modal } from '../../components/Modal';
-import { Plus, Search, Edit2, Trash2, Clock, Users, Sparkles, Loader2, Calendar, FileUp, Download } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Clock, Users, Sparkles, Loader2, Calendar, FileUp, Download, FileSpreadsheet } from 'lucide-react';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 
 import { useNavigate } from 'react-router-dom';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import { ensureArray } from '../../core/utils/data';
+import { read, utils, writeFile } from 'xlsx';
 
 export const TestManagement: React.FC = () => {
   const [tests, setTests] = useState<Test[]>([]);
@@ -44,11 +46,9 @@ export const TestManagement: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // File Import state
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExcelImportModalOpen, setIsExcelImportModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedAnswerFile, setSelectedAnswerFile] = useState<File | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
 
   // Manual Question state
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
@@ -290,313 +290,131 @@ export const TestManagement: React.FC = () => {
     });
   };
 
-  const handleDownloadSample = () => {
-    const sampleContent = `SỞ GIÁO DỤC VÀ ĐÀO TẠO ...
-TRƯỜNG THPT ...
-
-ĐỀ KIỂM TRA MẪU (THEO CẤU TRÚC CÔNG VĂN 7991/BGDĐT-GDTrH)
-Môn: Tin học
-Thời gian: 45 phút
-
-PHẦN I. Câu trắc nghiệm nhiều phương án lựa chọn. Thí sinh trả lời từ câu 1 đến câu 24. Mỗi câu hỏi chỉ chọn một phương án.
-
-Câu 1. Thiết bị nào sau đây là thiết bị vào của máy tính?
-A. Màn hình.
-B. Bàn phím.
-C. Loa.
-D. Máy in.
-
-Câu 2. Trong các thiết bị sau, thiết bị nào không phải là thiết bị lưu trữ?
-A. Ổ cứng.
-B. Thẻ nhớ.
-C. RAM.
-D. USB.
-
-PHẦN II. Câu trắc nghiệm đúng sai. Thí sinh trả lời từ câu 1 đến câu 4. Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn đúng hoặc sai.
-
-Câu 1. Cho các phát biểu sau về mạng máy tính:
-a) Mạng máy tính giúp chia sẻ tài nguyên dùng chung như máy in, dữ liệu.
-b) Internet là mạng máy tính toàn cầu kết nối hàng tỷ thiết bị.
-c) Wifi là một loại mạng có dây sử dụng cáp quang.
-d) Modem là thiết bị dùng để chuyển đổi tín hiệu số sang tín hiệu tương tự và ngược lại.
-
-Câu 2. Về hệ điều hành máy tính:
-a) Windows là hệ điều hành mã nguồn mở.
-b) Linux là hệ điều hành miễn phí và mã nguồn mở.
-c) Android là hệ điều hành dành cho thiết bị di động.
-d) Hệ điều hành quản lý phần cứng và phần mềm của máy tính.
-
-PHẦN III. Câu trắc nghiệm trả lời ngắn. Thí sinh trả lời từ câu 1 đến câu 6.
-
-Câu 1. Một byte bằng bao nhiêu bit?
-Đáp án: 8
-
-Câu 2. Đơn vị đo dung lượng lưu trữ nào lớn nhất trong các đơn vị sau: KB, MB, GB, TB?
-Đáp án: TB
-
----
-HẾT ---`;
-
-    const blob = new Blob([sampleContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'mau_de_thi_7991.txt';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleDownloadExcelSample = () => {
+    const ws = utils.aoa_to_sheet([
+      ['Loại câu hỏi (multiple_choice, true_false, short_answer, essay)', 'Mức độ (recognition, understanding, application)', 'Nội dung câu hỏi', 'Lựa chọn A', 'Lựa chọn B', 'Lựa chọn C', 'Lựa chọn D', 'Đáp án đúng', 'Giải thích'],
+      ['multiple_choice', 'recognition', 'Thủ đô của Việt Nam là gì?', 'Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Hà Nội', 'Hà Nội là thủ đô của nước CHXHCN Việt Nam.'],
+      ['true_false', 'understanding', 'Các phát biểu sau về máy tính là đúng hay sai?', 'Máy tính có thể tự suy nghĩ', 'RAM là bộ nhớ tạm thời', 'Ổ cứng lưu trữ dữ liệu vĩnh viễn', 'CPU là bộ não của máy tính', 'Sai, Đúng, Đúng, Đúng', 'Máy tính chỉ thực hiện theo lập trình.'],
+      ['short_answer', 'application', '1 + 1 bằng mấy?', '', '', '', '', '2', 'Toán học cơ bản.'],
+      ['essay', 'application', 'Hãy viết một đoạn văn ngắn về tầm quan trọng của việc học.', '', '', '', '', 'Học sinh tự viết, giáo viên chấm theo ý.', 'Khuyến khích tư duy tự do.']
+    ]);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Mau_Cau_Hoi");
+    writeFile(wb, "Mau_Nhap_Cau_Hoi.xlsx");
   };
 
-  const handleGenerateAnswerTemplate = async () => {
-    if (!selectedFile) {
-      alert('Vui lòng chọn file PDF đề thi trước khi tạo đáp án mẫu');
-      return;
-    }
-
-    setIsGeneratingTemplate(true);
-    try {
-      const base64Data = await readFileAsBase64(selectedFile);
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const prompt = `Đọc file đề thi đính kèm và tạo ra một file đáp án mẫu (dạng text) dựa trên cấu trúc các câu hỏi trong đề.
-      Định dạng của file đáp án mẫu phải như sau:
-      BẢNG ĐÁP ÁN
-      [Đối với câu trắc nghiệm nhiều lựa chọn]
-      Câu 1: [A/B/C/D]
-      Câu 2: [A/B/C/D]
-      ...
-      [Đối với câu Đúng/Sai]
-      Câu 3 (Đúng/Sai):
-      a) [Đ/S]
-      b) [Đ/S]
-      c) [Đ/S]
-      d) [Đ/S]
-      ...
-      [Đối với câu trả lời ngắn hoặc tự luận]
-      Câu 4 (Trả lời ngắn): [Nhập đáp án ngắn vào đây]
-      Câu 5 (Tự luận): [Nhập hướng dẫn chấm hoặc đáp án chi tiết vào đây]
-      
-      Hãy đếm chính xác số lượng câu hỏi và loại câu hỏi trong đề thi để tạo ra mẫu có số thứ tự câu hỏi khớp hoàn toàn với đề thi.
-      Chỉ trả về nội dung text của file đáp án mẫu, không kèm theo bất kỳ lời giải thích nào khác.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: selectedFile.type || 'application/pdf'
-            }
-          },
-          { text: prompt }
-        ],
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
-        }
-      });
-
-      const content = response.text || '';
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'dap_an_mau.txt';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-    } catch (error) {
-      console.error("Error generating answer template:", error);
-      alert("Có lỗi xảy ra khi tạo đáp án mẫu. Vui lòng thử lại.");
-    } finally {
-      setIsGeneratingTemplate(false);
-    }
-  };
-
-  const handleImportFile = async (e: React.FormEvent) => {
+  const handleImportExcel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      alert('Vui lòng chọn file PDF đề thi');
+      alert('Vui lòng chọn file Excel');
       return;
     }
 
     setIsExtracting(true);
     try {
-      const base64Data = await readFileAsBase64(selectedFile);
-      let answerBase64Data = null;
-      if (selectedAnswerFile) {
-        answerBase64Data = await readFileAsBase64(selectedAnswerFile);
-      }
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = read(bstr, { type: 'binary' });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = utils.sheet_to_json(ws, { header: 1 });
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      let prompt = `Bạn là một chuyên gia khảo thí và xây dựng đề kiểm tra theo định dạng của Bộ Giáo dục và Đào tạo Việt Nam (Công văn 7991).
-      Nhiệm vụ của bạn là đọc, phân tích và trích xuất TOÀN BỘ câu hỏi từ file đính kèm một cách chính xác nhất. KHÔNG ĐƯỢC BỎ SÓT BẤT KỲ CÂU NÀO.
-      
-      Cấu trúc đề thi thường có 3 phần chính theo định dạng mới của Bộ GD&ĐT:
-      - Phần I: Câu hỏi trắc nghiệm nhiều lựa chọn (multiple_choice). Thường có 4 phương án A, B, C, D.
-      - Phần II: Câu hỏi trắc nghiệm Đúng/Sai (true_false). Đây là phần quan trọng nhất. 
-        Quy tắc cấu trúc câu hỏi Đúng/Sai:
-        1. Lệnh dẫn/Ngữ cảnh (content): Là phần văn bản nêu tình huống, đoạn mã code hoặc bảng dữ liệu chung.
-        2. Các ý lựa chọn (subQuestions): Luôn gồm 4 ý ký hiệu là a), b), c), d).
-        3. Đáp án (correctAnswer): Mỗi ý a, b, c, d chỉ nhận giá trị là true (Đúng) hoặc false (Sai).
-        + Bạn PHẢI trích xuất mỗi câu hỏi lớn này thành MỘT đối tượng JSON với type là 'true_false'.
-        + Mảng 'subQuestions' PHẢI chứa đầy đủ 4 ý a, b, c, d.
-      - Phần III: Câu hỏi trắc nghiệm trả lời ngắn (short_answer).
-      - Phần IV (nếu có): Tự luận (essay).
+          const rows = data.slice(1) as any[][];
+          
+          const newQuestions: Question[] = rows.map((row, index) => {
+            const typeRaw = (row[0] || '').toString().trim().toLowerCase();
+            const difficultyRaw = (row[1] || '').toString().trim().toLowerCase();
+            const content = (row[2] || '').toString().trim();
+            const optA = (row[3] || '').toString().trim();
+            const optB = (row[4] || '').toString().trim();
+            const optC = (row[5] || '').toString().trim();
+            const optD = (row[6] || '').toString().trim();
+            const correctAnswerRaw = (row[7] || '').toString().trim();
+            const explanation = (row[8] || '').toString().trim();
 
-      Xác định mức độ khó cho từng câu: 'recognition' (Nhận biết), 'understanding' (Thông hiểu), 'application' (Vận dụng).
-      Trả về mảng JSON các câu hỏi, bao gồm cả phần giải thích (explanation) ngắn gọn cho đáp án.
+            if (!content) throw new Error(`Dòng ${index + 2}: Thiếu nội dung câu hỏi.`);
 
-      ĐỐI VỚI CÂU HỎI ĐÚNG/SAI (true_false):
-      - Quy tắc: 
-        1. Lệnh dẫn/Ngữ cảnh (content): Là phần văn bản nêu tình huống, đoạn mã code hoặc bảng dữ liệu chung.
-        2. Các ý lựa chọn (subQuestions): Luôn gồm 4 ý ký hiệu là a), b), c), d).
-        3. Đáp án (correctAnswer): Mỗi ý a, b, c, d chỉ nhận giá trị là true (Đúng) hoặc false (Sai).
-      - Hãy tìm các câu hỏi có cấu trúc: "Câu X. [Nội dung dẫn] ... a) [Ý 1] ... b) [Ý 2] ... c) [Ý 3] ... d) [Ý 4]".
-      - Trường 'content' chứa nội dung dẫn của câu hỏi.
-      - Trường 'subQuestions' PHẢI là một mảng gồm 4 ý nhỏ.
-      - Mỗi ý (subQuestion) phải có 'id' (a, b, c, d), 'content' (nội dung ý đó), 'difficulty' (mức độ của ý đó), 'correctAnswer' (boolean), và 'explanation' (giải thích tại sao đúng/sai).
-      - CHÚ Ý: Nếu trong file có ghi đáp án (ví dụ: a-Đ, b-S, c-Đ, d-S), hãy gán giá trị boolean tương ứng. Nếu không có đáp án, hãy để mặc định là true.
-      - KHÔNG ĐƯỢC gộp nhiều câu hỏi lớn vào một đối tượng hoặc chia nhỏ một câu hỏi lớn thành nhiều đối tượng.`;
+            let type = 'multiple_choice';
+            if (typeRaw.includes('true_false') || typeRaw.includes('đúng/sai')) type = 'true_false';
+            else if (typeRaw.includes('short_answer') || typeRaw.includes('trả lời ngắn')) type = 'short_answer';
+            else if (typeRaw.includes('essay') || typeRaw.includes('tự luận')) type = 'essay';
 
-      const contents: any[] = [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: selectedFile.type || 'application/pdf'
-          }
-        }
-      ];
+            let difficulty = 'recognition';
+            if (difficultyRaw.includes('understanding') || difficultyRaw.includes('thông hiểu')) difficulty = 'understanding';
+            else if (difficultyRaw.includes('application') || difficultyRaw.includes('vận dụng')) difficulty = 'application';
 
-      if (answerBase64Data) {
-        prompt = `Bạn là một chuyên gia khảo thí và xây dựng đề kiểm tra theo định dạng của Bộ Giáo dục và Đào tạo Việt Nam (Công văn 7991).
-        Nhiệm vụ của bạn là trích xuất TOÀN BỘ câu hỏi từ file đề thi đính kèm (file thứ nhất) và kết hợp với file đáp án (file thứ hai) một cách chính xác nhất. KHÔNG ĐƯỢC BỎ SÓT BẤT KỲ CÂU NÀO.
-        
-        Cấu trúc đề thi thường có 3 phần chính theo định dạng mới của Bộ GD&ĐT:
-        - Phần I: Câu hỏi trắc nghiệm nhiều lựa chọn (multiple_choice).
-        - Phần II: Câu hỏi trắc nghiệm Đúng/Sai (true_false). Đây là phần quan trọng nhất. 
-          Quy tắc cấu trúc câu hỏi Đúng/Sai:
-          1. Lệnh dẫn/Ngữ cảnh (content): Là phần văn bản nêu tình huống, đoạn mã code hoặc bảng dữ liệu chung.
-          2. Các ý lựa chọn (subQuestions): Luôn gồm 4 ý ký hiệu là a), b), c), d).
-          3. Đáp án (correctAnswer): Mỗi ý a, b, c, d chỉ nhận giá trị là true (Đúng) hoặc false (Sai).
-          + Bạn PHẢI trích xuất mỗi câu hỏi lớn này thành MỘT đối tượng JSON với type là 'true_false'.
-          + Mảng 'subQuestions' PHẢI chứa đầy đủ 4 ý a, b, c, d.
-        - Phần III: Câu hỏi trắc nghiệm trả lời ngắn (short_answer).
-        - Phần IV (nếu có): Tự luận (essay).
+            let options: string[] = [];
+            let correctAnswer: any = undefined;
+            let subQuestions: any[] = [];
 
-        Sử dụng file đáp án để xác định đáp án đúng (correctAnswer) và hướng dẫn chấm cho từng câu.
-        Trả về mảng JSON các câu hỏi, bao gồm cả phần giải thích (explanation) ngắn gọn cho đáp án.
-
-        ĐỐI VỚI CÂU HỎI ĐÚNG/SAI (true_false):
-        - Quy tắc: 
-          1. Lệnh dẫn/Ngữ cảnh (content): Là phần văn bản nêu tình huống, đoạn mã code hoặc bảng dữ liệu chung.
-          2. Các ý lựa chọn (subQuestions): Luôn gồm 4 ý ký hiệu là a), b), c), d).
-          3. Đáp án (correctAnswer): Mỗi ý a, b, c, d chỉ nhận giá trị là true (Đúng) hoặc false (Sai).
-        - Hãy cực kỳ cẩn thận với phần này. Tìm các câu hỏi có 4 ý a, b, c, d.
-        - Mỗi câu hỏi lớn là một đối tượng JSON.
-        - Trường 'subQuestions' chứa 4 ý nhỏ.
-        - Mỗi ý nhỏ PHẢI có 'correctAnswer' kiểu boolean (true/false) dựa trên file đáp án (Đ/Đúng -> true, S/Sai -> false).
-        - Mỗi ý nhỏ PHẢI có 'explanation' giải thích tại sao đúng/sai.
-        - Đảm bảo trích xuất đầy đủ nội dung của cả 4 ý a, b, c, d cho mỗi câu hỏi Phần II.
-        - KHÔNG ĐƯỢC gộp nhiều câu hỏi lớn vào một đối tượng hoặc chia nhỏ một câu hỏi lớn thành nhiều đối tượng.`;
-        
-        contents.push({
-          inlineData: {
-            data: answerBase64Data,
-            mimeType: selectedAnswerFile!.type || 'application/pdf'
-          }
-        });
-      }
-
-      contents.push({ text: prompt });
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: contents,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                type: { type: Type.STRING, description: "Loại câu hỏi: 'multiple_choice', 'true_false', 'short_answer', 'essay'" },
-                difficulty: { type: Type.STRING, description: "Mức độ: 'recognition', 'understanding', 'application'" },
-                content: { type: Type.STRING, description: "Nội dung câu hỏi" },
-                options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Các lựa chọn (chỉ dành cho multiple_choice)" },
-                correctAnswer: { type: Type.STRING, description: "Câu trả lời đúng hoặc hướng dẫn chấm chi tiết (dành cho multiple_choice, short_answer)" },
-                subQuestions: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      id: { type: Type.STRING },
-                      content: { type: Type.STRING },
-                      difficulty: { type: Type.STRING },
-                      correctAnswer: { type: Type.BOOLEAN },
-                      explanation: { type: Type.STRING, description: "Giải thích tại sao ý này đúng/sai" }
-                    }
-                  },
-                  description: "Các ý hỏi phụ (chỉ dành cho true_false, gồm 4 ý a,b,c,d)"
-                },
-                points: { type: Type.NUMBER, description: "Điểm số (ví dụ: 0.25, 0.5, 1, 2)" },
-                explanation: { type: Type.STRING, description: "Giải thích đáp án chung cho câu hỏi" }
-              },
-              required: ["type", "content", "points"]
+            if (type === 'multiple_choice') {
+              options = [optA, optB, optC, optD].filter(Boolean);
+              if (options.length < 2) throw new Error(`Dòng ${index + 2}: Câu hỏi trắc nghiệm cần ít nhất 2 lựa chọn.`);
+              
+              if (correctAnswerRaw.length === 1 && ['a', 'b', 'c', 'd'].includes(correctAnswerRaw.toLowerCase())) {
+                const charCode = correctAnswerRaw.toLowerCase().charCodeAt(0) - 97;
+                correctAnswer = options[charCode];
+              } else {
+                const foundIndex = options.findIndex(opt => opt.toLowerCase() === correctAnswerRaw.toLowerCase());
+                if (foundIndex !== -1) {
+                  correctAnswer = options[foundIndex];
+                } else {
+                  correctAnswer = correctAnswerRaw;
+                }
+              }
+            } else if (type === 'true_false') {
+              const ansParts = correctAnswerRaw.split(/[,\s;|]+/).map((s: string) => s.trim().toLowerCase());
+              const getBool = (val: string) => val === 'đúng' || val === 't' || val === 'true' || val === '1' || val === 'đ' || val === 'yes' || val === 'y';
+              
+              subQuestions = [
+                { id: `sq_${Date.now()}_${index}_1`, content: optA, correctAnswer: getBool(ansParts[0] || ''), difficulty },
+                { id: `sq_${Date.now()}_${index}_2`, content: optB, correctAnswer: getBool(ansParts[1] || ''), difficulty },
+                { id: `sq_${Date.now()}_${index}_3`, content: optC, correctAnswer: getBool(ansParts[2] || ''), difficulty },
+                { id: `sq_${Date.now()}_${index}_4`, content: optD, correctAnswer: getBool(ansParts[3] || ''), difficulty }
+              ].filter(sq => sq.content);
+              correctAnswer = undefined;
+            } else {
+              correctAnswer = correctAnswerRaw;
             }
-          }
+
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              type: type as QuestionType,
+              difficulty: difficulty as any,
+              content,
+              options,
+              correctAnswer,
+              subQuestions,
+              explanation,
+              points: type === 'true_false' ? 1 : 1
+            };
+          });
+
+          setFormData(prev => ({
+            ...prev,
+            questions: [...(prev.questions || []), ...newQuestions]
+          }));
+          
+          setIsExcelImportModalOpen(false);
+          setSelectedFile(null);
+          alert(`Đã nhập thành công ${newQuestions.length} câu hỏi!`);
+        } catch (innerError: any) {
+          console.error("Error processing Excel data:", innerError);
+          alert(innerError.message || "Có lỗi xảy ra khi xử lý dữ liệu Excel.");
+        } finally {
+          setIsExtracting(false);
         }
-      });
-
-      const extractedQuestions: Question[] = parseTruncatedJSON(response.text).map((q: any) => ({
-        ...q,
-        id: Math.random().toString(36).substr(2, 9),
-        points: q.type === 'true_false' ? 1 : (q.points || 1)
-      }));
-
-      setFormData(prev => ({
-        ...prev,
-        questions: [...(prev.questions || []), ...extractedQuestions]
-      }));
-      
-      setIsImportModalOpen(false);
-      setSelectedFile(null);
-      setSelectedAnswerFile(null);
-      alert('Đã nhập dữ liệu từ file thành công!');
-    } catch (error: any) {
-      console.error('Lỗi khi trích xuất file:', error);
-      let errorString = String(error?.message || '');
-      try {
-        errorString += ' ' + (typeof error === 'object' ? JSON.stringify(error) : String(error));
-      } catch (e) {
-        errorString += ' ' + String(error);
-      }
-      
-      if (
-        errorString.includes('429') || 
-        errorString.includes('RESOURCE_EXHAUSTED') || 
-        error?.status === 429 || 
-        error?.status === 'RESOURCE_EXHAUSTED' ||
-        error?.error?.code === 429 ||
-        error?.error?.status === 'RESOURCE_EXHAUSTED'
-      ) {
-        alert('Hệ thống AI đang quá tải hoặc hết hạn mức sử dụng (Quota Exceeded). Vui lòng thử lại sau ít phút hoặc kiểm tra lại API Key.');
-      } else if (
-        errorString.includes('500') || 
-        errorString.includes('INTERNAL') || 
-        error?.status === 500 || 
-        error?.status === 'INTERNAL' ||
-        error?.error?.code === 500 ||
-        error?.error?.status === 'INTERNAL'
-      ) {
-        alert('Hệ thống AI đang gặp sự cố nội bộ (Internal Error). Vui lòng thử lại sau ít phút.');
-      } else {
-        alert('Có lỗi xảy ra khi đọc file. File có thể quá lớn hoặc không đúng định dạng. Vui lòng thử lại.');
-      }
-    } finally {
+      };
+      reader.onerror = () => {
+        setIsExtracting(false);
+        alert("Không thể đọc file Excel.");
+      };
+      reader.readAsArrayBuffer(selectedFile);
+    } catch (error) {
+      console.error("Error parsing Excel:", error);
+      alert("Có lỗi xảy ra khi đọc file Excel. Vui lòng kiểm tra lại định dạng.");
       setIsExtracting(false);
     }
   };
@@ -954,11 +772,11 @@ HẾT ---`;
                 </button>
                 <button 
                   type="button"
-                  onClick={() => setIsImportModalOpen(true)}
+                  onClick={() => setIsExcelImportModalOpen(true)}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
                 >
-                  <FileUp size={16} />
-                  Tải lên từ file
+                  <FileSpreadsheet size={16} />
+                  Nhập từ Excel
                 </button>
                 <button 
                   type="button"
@@ -1026,7 +844,7 @@ HẾT ---`;
                   />
                   {q.type === 'multiple_choice' && (
                     <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
-                      {(Array.isArray(q.options) ? q.options : (typeof q.options === 'string' ? (() => { try { return JSON.parse(q.options); } catch { return []; } })() : [])).map((opt: string, i: number) => (
+                      {ensureArray(q.options).map((opt: string, i: number) => (
                         <li key={i} className={opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}>
                           {opt}
                         </li>
@@ -1035,7 +853,7 @@ HẾT ---`;
                   )}
                   {q.type === 'true_false' && (
                     <div className="mt-2 space-y-1">
-                      {(Array.isArray(q.subQuestions) ? q.subQuestions : (typeof q.subQuestions === 'string' ? (() => { try { return JSON.parse(q.subQuestions); } catch { return []; } })() : [])).map((sq: any, i: number) => (
+                      {ensureArray(q.subQuestions).map((sq: any, i: number) => (
                         <div key={i} className="text-sm flex items-start gap-2">
                           <span className="font-medium text-gray-700">{sq.id})</span>
                           <div 
@@ -1192,36 +1010,36 @@ HẾT ---`;
         </div>
       </Modal>
 
-      {/* Import File Modal */}
-      <Modal 
-        isOpen={isImportModalOpen} 
-        onClose={() => !isExtracting && setIsImportModalOpen(false)}
-        title="Nhập câu hỏi từ file PDF"
+      {/* Excel Import Modal */}
+      <Modal
+        isOpen={isExcelImportModalOpen}
+        onClose={() => setIsExcelImportModalOpen(false)}
+        title="Nhập câu hỏi từ file Excel"
       >
-        <form onSubmit={handleImportFile} className="space-y-4">
+        <form onSubmit={handleImportExcel} className="space-y-4">
           <div className="space-y-4">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">1. File đề thi (Bắt buộc)</label>
+                <label className="block text-sm font-medium text-gray-700">File Excel (Bắt buộc)</label>
                 <button
                   type="button"
-                  onClick={handleDownloadSample}
+                  onClick={handleDownloadExcelSample}
                   className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
                 >
-                  <Download size={14} /> Tải đề thi mẫu (7991)
+                  <Download size={14} /> Tải file mẫu
                 </button>
               </div>
               <div className="p-6 border-2 border-dashed border-gray-300 rounded-xl text-center hover:border-emerald-500 transition-colors bg-gray-50">
-                <FileUp className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400 mb-3" />
                 <div className="text-sm text-gray-600">
-                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-emerald-600 hover:text-emerald-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-emerald-500">
-                    <span>{selectedFile ? selectedFile.name : 'Tải lên file PDF đề thi'}</span>
+                  <label htmlFor="excel-file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-emerald-600 hover:text-emerald-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-emerald-500">
+                    <span>{selectedFile ? selectedFile.name : 'Tải lên file Excel'}</span>
                     <input 
-                      id="file-upload" 
-                      name="file-upload" 
+                      id="excel-file-upload" 
+                      name="excel-file-upload" 
                       type="file" 
                       className="sr-only" 
-                      accept=".pdf" 
+                      accept=".xlsx, .xls" 
                       onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                       disabled={isExtracting}
                       required 
@@ -1231,49 +1049,12 @@ HẾT ---`;
                 </div>
               </div>
             </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">2. File đáp án / Hướng dẫn chấm (Tùy chọn)</label>
-                <button
-                  type="button"
-                  onClick={handleGenerateAnswerTemplate}
-                  disabled={!selectedFile || isGeneratingTemplate || isExtracting}
-                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 disabled:opacity-50"
-                >
-                  {isGeneratingTemplate ? (
-                    <><Loader2 size={14} className="animate-spin" /> Đang tạo...</>
-                  ) : (
-                    <><Download size={14} /> Xuất file đáp án mẫu</>
-                  )}
-                </button>
-              </div>
-              <div className="p-6 border-2 border-dashed border-gray-300 rounded-xl text-center hover:border-blue-500 transition-colors bg-gray-50">
-                <FileUp className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                <div className="text-sm text-gray-600">
-                  <label htmlFor="answer-file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                    <span>{selectedAnswerFile ? selectedAnswerFile.name : 'Tải lên file PDF đáp án'}</span>
-                    <input 
-                      id="answer-file-upload" 
-                      name="answer-file-upload" 
-                      type="file" 
-                      className="sr-only" 
-                      accept=".pdf" 
-                      onChange={(e) => setSelectedAnswerFile(e.target.files?.[0] || null)}
-                      disabled={isExtracting}
-                    />
-                  </label>
-                  {!selectedAnswerFile && <p className="pl-1">hoặc kéo thả vào đây</p>}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Hệ thống sẽ dùng AI để tự động trích xuất câu hỏi và đáp án từ các file này, hỗ trợ chấm điểm tự động cho cả câu hỏi tự luận.</p>
-            </div>
           </div>
           
           <div className="pt-4 flex justify-end gap-3 border-t">
             <button 
               type="button" 
-              onClick={() => setIsImportModalOpen(false)}
+              onClick={() => setIsExcelImportModalOpen(false)}
               disabled={isExtracting}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
             >
@@ -1287,10 +1068,10 @@ HẾT ---`;
               {isExtracting ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  <span>Đang trích xuất...</span>
+                  <span>Đang xử lý...</span>
                 </>
               ) : (
-                <span>Bắt đầu trích xuất</span>
+                <span>Bắt đầu nhập</span>
               )}
             </button>
           </div>
