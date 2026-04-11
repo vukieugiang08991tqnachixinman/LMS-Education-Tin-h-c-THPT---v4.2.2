@@ -380,7 +380,7 @@ export const TakeTest: React.FC = () => {
   const progress = ((currentQuestionIndex + 1) / test.questions.length) * 100;
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-slate-50 pb-20 select-none">
+    <div ref={containerRef} className="h-[100dvh] bg-slate-50 pb-20 select-none overflow-y-auto">
       {/* Immersive Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between gap-2">
