@@ -230,7 +230,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
   const finalScore10 = maxTotalScore > 0 ? Number(((totalCurrentScore / maxTotalScore) * 10).toFixed(2)) : 0;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết bài làm - ${submission.student?.name || 'Học sinh'}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết bài làm - ${submission.student?.name || 'Học sinh'}`} size="7xl">
       <div className="space-y-6 max-h-[80vh] overflow-y-auto p-1">
         
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-gray-50 p-4 rounded-xl border border-gray-200">

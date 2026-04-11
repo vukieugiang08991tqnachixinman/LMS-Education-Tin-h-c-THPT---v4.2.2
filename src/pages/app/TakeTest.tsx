@@ -383,25 +383,25 @@ export const TakeTest: React.FC = () => {
     <div ref={containerRef} className="min-h-screen bg-slate-50 pb-20 select-none">
       {/* Immersive Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
-              <FileText size={20} />
+        <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+            <div className="w-8 h-8 md:w-10 md:h-10 shrink-0 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+              <FileText size={18} className="md:w-5 md:h-5" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 line-clamp-1">{test.title}</h2>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+            <div className="min-w-0">
+              <h2 className="text-base md:text-lg font-bold text-slate-900 truncate">{test.title}</h2>
+              <div className="flex items-center gap-1 md:gap-2 text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest truncate">
                 <span>Câu {currentQuestionIndex + 1} / {test.questions.length}</span>
-                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                <span>{Math.round(progress)}% Hoàn thành</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
+                <span className="truncate">{Math.round(progress)}% Hoàn thành</span>
               </div>
             </div>
           </div>
 
-          <div className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-mono text-xl font-black shadow-sm transition-colors ${
+          <div className={`flex items-center gap-2 md:gap-3 px-3 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-mono text-base md:text-xl font-black shadow-sm transition-colors shrink-0 ${
             timeLeft < 300 ? 'bg-rose-50 text-rose-600 animate-pulse' : 'bg-indigo-50 text-indigo-600'
           }`}>
-            <Timer size={24} />
+            <Timer size={20} className="md:w-6 md:h-6" />
             {formatTime(timeLeft)}
           </div>
         </div>
@@ -417,15 +417,15 @@ export const TakeTest: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <main className="max-w-6xl mx-auto px-4 py-8 flex flex-col lg:grid lg:grid-cols-4 gap-8">
         {/* Question Navigation Sidebar */}
-        <aside className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+        <aside className="lg:col-span-1 space-y-4 md:space-y-6 order-last lg:order-first">
+          <div className="bg-white rounded-3xl md:rounded-[2rem] p-5 md:p-6 border border-slate-100 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 md:mb-6 flex items-center gap-2">
               <Flag size={14} />
               Danh sách câu hỏi
             </h3>
-            <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-4 gap-2 md:gap-3">
               {ensureArray(test.questions).map((q, idx) => {
                 let isAnswered = false;
                 if (q.type === 'true_false' && q.subQuestions) {
@@ -469,10 +469,10 @@ export const TakeTest: React.FC = () => {
             </div>
           </div>
           
-          <div className="bg-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-indigo-100">
-            <HelpCircle className="mb-4 opacity-60" size={32} />
-            <h4 className="font-bold mb-2">Cần trợ giúp?</h4>
-            <p className="text-sm text-indigo-100 leading-relaxed">Đọc kỹ câu hỏi và các phương án trả lời trước khi chọn nhé. Chúc bạn thi tốt!</p>
+          <div className="bg-indigo-600 rounded-3xl md:rounded-[2rem] p-5 md:p-6 text-white shadow-xl shadow-indigo-100">
+            <HelpCircle className="mb-3 md:mb-4 opacity-60" size={28} />
+            <h4 className="font-bold mb-1 md:mb-2">Cần trợ giúp?</h4>
+            <p className="text-xs md:text-sm text-indigo-100 leading-relaxed">Đọc kỹ câu hỏi và các phương án trả lời trước khi chọn nhé. Chúc bạn thi tốt!</p>
           </div>
         </aside>
 
@@ -484,40 +484,40 @@ export const TakeTest: React.FC = () => {
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="bg-white rounded-[2.5rem] p-8 sm:p-12 border border-slate-100 shadow-sm min-h-[500px] flex flex-col"
+              className="bg-white rounded-3xl md:rounded-[2.5rem] p-5 sm:p-8 md:p-12 border border-slate-100 shadow-sm min-h-[400px] md:min-h-[500px] flex flex-col"
             >
-              <div className="mb-10">
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-black uppercase tracking-widest">
+              <div className="mb-6 md:mb-10">
+                <div className="flex flex-wrap items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6">
+                  <span className="inline-flex items-center gap-1 md:gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-lg md:rounded-xl bg-indigo-50 text-indigo-600 text-[10px] md:text-xs font-black uppercase tracking-widest">
                     {currentQuestion.type === 'multiple_choice' ? 'Trắc nghiệm' : 
                      currentQuestion.type === 'true_false' ? 'Đúng / Sai' : 
                      currentQuestion.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
                   </span>
-                  <span className="text-sm font-bold text-slate-400">
+                  <span className="text-xs md:text-sm font-bold text-slate-400">
                     Điểm: <span className="text-indigo-600">{currentQuestion.type === 'true_false' ? 1 : currentQuestion.points}</span>
                   </span>
                 </div>
 
                 <div 
-                  className="text-2xl font-bold text-slate-900 leading-snug"
+                  className="text-xl md:text-2xl font-bold text-slate-900 leading-snug overflow-x-auto"
                   dangerouslySetInnerHTML={{ __html: String(currentQuestion.content || '') }}
                 />
               </div>
 
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-3 md:space-y-4">
                 {currentQuestion.type === 'multiple_choice' && ensureArray(currentQuestion.options).map((opt: string, idx: number) => (
                   <label 
                     key={idx} 
-                    className={`flex items-center gap-4 p-6 rounded-2xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-center gap-3 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-2xl border-2 cursor-pointer transition-all ${
                       answers[currentQuestion.id] === opt 
                         ? 'border-indigo-600 bg-indigo-50/50 shadow-md shadow-indigo-50' 
                         : 'border-slate-50 hover:border-indigo-200 bg-slate-50/30'
                     }`}
                   >
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                    <div className={`w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
                       answers[currentQuestion.id] === opt ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
                     }`}>
-                      {answers[currentQuestion.id] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                      {answers[currentQuestion.id] === opt && <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-white" />}
                     </div>
                     <input 
                       type="radio" 
@@ -527,24 +527,24 @@ export const TakeTest: React.FC = () => {
                       onChange={() => handleAnswerChange(currentQuestion.id, opt)}
                       className="hidden"
                     />
-                    <span className={`text-lg font-medium ${answers[currentQuestion.id] === opt ? 'text-indigo-900' : 'text-slate-600'}`}>
+                    <span className={`text-base md:text-lg font-medium ${answers[currentQuestion.id] === opt ? 'text-indigo-900' : 'text-slate-600'}`}>
                       {opt}
                     </span>
                   </label>
                 ))}
 
                 {currentQuestion.type === 'true_false' && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 md:space-y-6">
                     {ensureArray(currentQuestion.subQuestions).map((sq, sqIdx) => (
-                      <div key={`${sq.id || 'sq'}-${sqIdx}`} className="p-6 rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex-1 text-lg font-medium text-slate-700 flex items-start">
-                          <span className="text-indigo-600 font-black mr-3 shrink-0">{String.fromCharCode(97 + sqIdx)})</span>
+                      <div key={`${sq.id || 'sq'}-${sqIdx}`} className="p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+                        <div className="flex-1 text-base md:text-lg font-medium text-slate-700 flex items-start">
+                          <span className="text-indigo-600 font-black mr-2 md:mr-3 shrink-0">{String.fromCharCode(97 + sqIdx)})</span>
                           <div dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2 md:gap-3 shrink-0 w-full md:w-auto">
                           <button
                             onClick={() => handleAnswerChange(currentQuestion.id, true, sq.id)}
-                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                            className={`flex-1 md:flex-none px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold text-sm transition-all border-2 ${
                               answers[currentQuestion.id]?.[sq.id] === true
                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
                                 : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'
@@ -554,7 +554,7 @@ export const TakeTest: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleAnswerChange(currentQuestion.id, false, sq.id)}
-                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                            className={`flex-1 md:flex-none px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold text-sm transition-all border-2 ${
                               answers[currentQuestion.id]?.[sq.id] === false
                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
                                 : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'
@@ -574,7 +574,7 @@ export const TakeTest: React.FC = () => {
                     value={answers[currentQuestion.id] || ''}
                     onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                     placeholder="Nhập câu trả lời của bạn tại đây..."
-                    className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-lg font-medium"
+                    className="w-full p-4 md:p-6 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-base md:text-lg font-medium"
                   />
                 )}
 
@@ -584,40 +584,40 @@ export const TakeTest: React.FC = () => {
                     onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                     placeholder="Trình bày chi tiết bài làm của bạn..."
                     rows={10}
-                    className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-lg leading-relaxed"
+                    className="w-full p-4 md:p-6 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-base md:text-lg leading-relaxed"
                   />
                 )}
               </div>
 
-              <div className="mt-12 pt-8 border-t border-slate-50 flex justify-between items-center">
+              <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-slate-50 flex justify-between items-center gap-2">
                 <button
                   onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
                   disabled={currentQuestionIndex === 0}
-                  className="flex items-center gap-2 px-6 py-4 text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200 disabled:opacity-50 transition-all font-bold"
+                  className="flex items-center justify-center gap-1 md:gap-2 px-4 py-3 md:px-6 md:py-4 text-slate-500 bg-slate-100 rounded-xl md:rounded-2xl hover:bg-slate-200 disabled:opacity-50 transition-all font-bold text-sm md:text-base flex-1 md:flex-none"
                 >
-                  <ChevronLeft size={20} /> Câu trước
+                  <ChevronLeft size={18} className="md:w-5 md:h-5" /> <span className="hidden sm:inline">Câu trước</span><span className="sm:hidden">Trước</span>
                 </button>
 
                 {!isLastQuestion ? (
                   <button
                     onClick={() => setCurrentQuestionIndex(prev => Math.min(test.questions.length - 1, prev + 1))}
-                    className="flex items-center gap-2 px-8 py-4 text-white bg-indigo-600 rounded-2xl hover:bg-indigo-700 transition-all font-bold shadow-lg shadow-indigo-100 group/btn"
+                    className="flex items-center justify-center gap-1 md:gap-2 px-6 py-3 md:px-8 md:py-4 text-white bg-indigo-600 rounded-xl md:rounded-2xl hover:bg-indigo-700 transition-all font-bold shadow-lg shadow-indigo-100 group/btn text-sm md:text-base flex-1 md:flex-none"
                   >
-                    Câu tiếp theo <ChevronRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
+                    <span className="hidden sm:inline">Câu tiếp theo</span><span className="sm:hidden">Tiếp</span> <ChevronRight size={18} className="md:w-5 md:h-5 group-hover/btn:translate-x-1 transition-transform" />
                   </button>
                 ) : (
                   <button
                     onClick={handlePreSubmit}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-10 py-4 text-white bg-emerald-600 rounded-2xl hover:bg-emerald-700 font-black transition-all shadow-lg shadow-emerald-100"
+                    className="flex items-center justify-center gap-1 md:gap-2 px-6 py-3 md:px-10 md:py-4 text-white bg-emerald-600 rounded-xl md:rounded-2xl hover:bg-emerald-700 font-black transition-all shadow-lg shadow-emerald-100 text-sm md:text-base flex-1 md:flex-none"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 size={20} className="animate-spin" /> Đang nộp bài...
+                        <Loader2 size={18} className="animate-spin md:w-5 md:h-5" /> <span className="hidden sm:inline">Đang nộp bài...</span><span className="sm:hidden">Đang nộp...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle size={20} /> Hoàn thành & Nộp bài
+                        <CheckCircle size={18} className="md:w-5 md:h-5" /> <span className="hidden sm:inline">Hoàn thành & Nộp bài</span><span className="sm:hidden">Nộp bài</span>
                       </>
                     )}
                   </button>
@@ -641,16 +641,16 @@ export const TakeTest: React.FC = () => {
               <p className="text-sm text-amber-700 leading-relaxed">Vẫn còn một số câu hỏi chưa được trả lời. Bạn có chắc chắn muốn nộp bài ngay bây giờ không?</p>
             </div>
           </div>
-          <div className="flex justify-end gap-4">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4">
             <button
               onClick={() => setShowConfirmSubmit(false)}
-              className="px-6 py-3 text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all font-bold"
+              className="w-full sm:w-auto px-6 py-3 text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all font-bold text-center"
             >
               Tiếp tục làm bài
             </button>
             <button
               onClick={handleSubmit}
-              className="px-8 py-3 text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-all font-bold shadow-lg shadow-emerald-100"
+              className="w-full sm:w-auto px-8 py-3 text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-all font-bold shadow-lg shadow-emerald-100 text-center"
             >
               Nộp bài ngay
             </button>
@@ -660,18 +660,18 @@ export const TakeTest: React.FC = () => {
 
       {/* Fullscreen Overlay */}
       {!isFullscreen && !loading && test && !isSubmitting && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-lg text-center border border-slate-100">
-            <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
-              <Timer size={40} />
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-6">
+          <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3rem] shadow-2xl max-w-lg text-center border border-slate-100 w-full">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-100 text-indigo-600 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8">
+              <Timer size={32} className="md:w-10 md:h-10" />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 mb-4">Chế độ thi an toàn</h2>
-            <p className="text-slate-600 mb-10 text-lg leading-relaxed">
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-3 md:mb-4">Chế độ thi an toàn</h2>
+            <p className="text-slate-600 mb-8 md:mb-10 text-base md:text-lg leading-relaxed">
               Để đảm bảo tính công bằng, bạn cần làm bài ở chế độ <span className="font-bold text-indigo-600">Toàn màn hình</span>. Mọi hành vi rời khỏi trang sẽ được ghi lại.
             </p>
             <button
               onClick={enterFullscreen}
-              className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
+              className="w-full py-4 md:py-5 bg-indigo-600 text-white rounded-xl md:rounded-2xl font-black text-lg md:text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
             >
               Bắt đầu làm bài ngay
             </button>
@@ -685,16 +685,16 @@ export const TakeTest: React.FC = () => {
         onClose={() => setShowViolationWarning(false)}
         title="CẢNH BÁO VI PHẠM"
       >
-        <div className="p-8 text-center">
-          <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle size={40} />
+        <div className="p-4 md:p-8 text-center">
+          <div className="w-16 h-16 md:w-20 md:h-20 bg-rose-100 text-rose-600 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-4 md:mb-6">
+            <AlertTriangle size={32} className="md:w-10 md:h-10" />
           </div>
-          <h3 className="text-2xl font-black text-slate-900 mb-2">Phát hiện hành vi bất thường!</h3>
+          <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-2">Phát hiện hành vi bất thường!</h3>
           <p className="text-rose-600 font-bold mb-4">Lần vi phạm thứ: {violations}</p>
-          <div className="bg-slate-50 p-4 rounded-2xl mb-8 text-slate-600 text-sm italic">
+          <div className="bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl mb-6 md:mb-8 text-slate-600 text-xs md:text-sm italic">
             "{lastViolationMsg}"
           </div>
-          <p className="text-slate-500 mb-8 leading-relaxed">
+          <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8 leading-relaxed">
             Hệ thống đã ghi nhận hành động này và sẽ báo cáo cho giáo viên. Vui lòng tập trung làm bài và không rời khỏi trình duyệt.
           </p>
           <button
@@ -702,7 +702,7 @@ export const TakeTest: React.FC = () => {
               setShowViolationWarning(false);
               if (!isFullscreen) enterFullscreen();
             }}
-            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all"
+            className="w-full py-3 md:py-4 bg-slate-900 text-white rounded-xl md:rounded-2xl font-bold hover:bg-slate-800 transition-all text-sm md:text-base"
           >
             Tôi đã hiểu và cam kết không tái phạm
           </button>
