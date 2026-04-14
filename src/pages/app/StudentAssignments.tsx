@@ -4,8 +4,7 @@ import { dataProvider } from '../../core/provider';
 import { Assignment, Subject, Topic, Class, Submission } from '../../core/types';
 import { FileText, Calendar, Clock, BookOpen, Download, Upload, CheckCircle, ArrowRight, AlertCircle, Inbox } from 'lucide-react';
 import { Modal } from '../../components/Modal';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { QuillEditor } from '../../components/QuillEditor';
 import { GoogleGenAI, Type } from "@google/genai";
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
@@ -779,8 +778,7 @@ export const StudentAssignments = () => {
                 Tự luận
               </label>
               <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 focus-within:border-indigo-500 transition-all">
-                <ReactQuill
-                  theme="snow"
+                <QuillEditor
                   value={part4Content}
                   onChange={setPart4Content}
                   className="h-64 pb-12"

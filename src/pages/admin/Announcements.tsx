@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { QuillEditor } from '../../components/QuillEditor';
 import { dataProvider } from '../../core/provider';
 import { Announcement, Class } from '../../core/types';
 import { Modal } from '../../components/Modal';
@@ -146,8 +145,7 @@ export const Announcements: React.FC = () => {
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Nội dung</label>
             <div className="bg-white rounded-xl overflow-hidden border-2 border-gray-200 focus-within:ring-4 focus-within:ring-pink-500/20 focus-within:border-pink-500 transition-all">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={formData.content || ''}
                 onChange={content => setFormData({...formData, content})}
                 className="h-48 mb-12"

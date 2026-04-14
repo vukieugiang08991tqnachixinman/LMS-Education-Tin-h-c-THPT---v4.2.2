@@ -5,8 +5,7 @@ import { Lesson, Subject, Topic, Assignment, Submission, User, InteractiveBlock,
 import { Modal } from '../../components/Modal';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { ensureArray } from '../../core/utils/data';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { QuillEditor } from '../../components/QuillEditor';
 
 const LessonManagement = () => {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -1133,8 +1132,7 @@ const LessonManagement = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung / Yêu cầu cần đạt</label>
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={formData.content || ''}
                 onChange={content => setFormData({...formData, content})}
                 className="h-40 mb-12"
@@ -1408,8 +1406,7 @@ const LessonManagement = () => {
                     </button>
                   </div>
                   <div className="bg-white rounded-lg overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
-                    <ReactQuill 
-                      theme="snow"
+                    <QuillEditor 
                       value={question.content}
                       onChange={content => updateEssayQuestion(question.id, content)}
                       className="h-32 mb-12"

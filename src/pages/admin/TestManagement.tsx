@@ -7,8 +7,7 @@ import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 
 import { useNavigate } from 'react-router-dom';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { QuillEditor } from '../../components/QuillEditor';
 import { ensureArray } from '../../core/utils/data';
 import { read, utils, writeFile } from 'xlsx';
 
@@ -1123,8 +1122,7 @@ export const TestManagement: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi (Lệnh dẫn/Ngữ cảnh)</label>
             <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={questionForm.content || ''}
                 onChange={content => setQuestionForm({...questionForm, content})}
                 className="h-40 mb-12"
@@ -1171,8 +1169,7 @@ export const TestManagement: React.FC = () => {
                   <div className="flex items-center justify-between gap-4">
                     <span className="font-bold text-gray-700 w-6 text-center">{sq.id})</span>
                     <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-                      <ReactQuill 
-                        theme="snow"
+                      <QuillEditor 
                         value={sq.content || ''}
                         onChange={content => {
                           const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);

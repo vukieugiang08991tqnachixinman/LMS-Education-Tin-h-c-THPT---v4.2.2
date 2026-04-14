@@ -6,8 +6,7 @@ import { Modal } from '../../components/Modal';
 import { GoogleGenAI, Type } from '@google/genai';
 import { parseTruncatedJSON } from '../../utils/jsonUtils';
 import * as XLSX from 'xlsx';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { QuillEditor } from '../../components/QuillEditor';
 import { ensureArray } from '../../core/utils/data';
 
 export const QuestionBank: React.FC = () => {
@@ -778,8 +777,7 @@ export const QuestionBank: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi (Lệnh dẫn/Ngữ cảnh)</label>
             <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={questionForm.content || ''}
                 onChange={content => setQuestionForm({...questionForm, content})}
                 className="h-40 mb-12"
@@ -844,8 +842,7 @@ export const QuestionBank: React.FC = () => {
                 <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl">
                   <span className="font-bold w-6">{sq?.id || (idx + 1)})</span>
                   <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-                    <ReactQuill 
-                      theme="snow"
+                    <QuillEditor 
                       value={sq?.content || ''}
                       onChange={content => {
                         const currentSubs = ensureArray(questionForm.subQuestions);
@@ -931,8 +928,7 @@ export const QuestionBank: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Hướng dẫn chấm</label>
               <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-                <ReactQuill 
-                  theme="snow"
+                <QuillEditor 
                   value={questionForm.correctAnswer as string || ''}
                   onChange={content => setQuestionForm({...questionForm, correctAnswer: content})}
                   className="h-32 mb-12"
@@ -945,8 +941,7 @@ export const QuestionBank: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Giải thích đáp án</label>
             <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={questionForm.explanation || ''}
                 onChange={content => setQuestionForm({...questionForm, explanation: content})}
                 className="h-32 mb-12"
@@ -1265,8 +1260,7 @@ export const QuestionBank: React.FC = () => {
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>
                 <div className="bg-white rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                  <ReactQuill 
-                    theme="snow"
+                  <QuillEditor 
                     value={q.content || ''}
                     onChange={(content) => handlePreviewChange(qIndex, 'content', content)}
                     className="h-32 mb-12"
@@ -1307,8 +1301,7 @@ export const QuestionBank: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium w-6">{String.fromCharCode(97 + sqIndex)})</span>
                           <div className="flex-1 bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                            <ReactQuill 
-                              theme="snow"
+                            <QuillEditor 
                               value={sq.content || ''}
                               onChange={content => handlePreviewSubQuestionChange(qIndex, sqIndex, 'content', content)}
                               className="h-20 mb-10"
@@ -1360,8 +1353,7 @@ export const QuestionBank: React.FC = () => {
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Hướng dẫn chấm</label>
                   <div className="bg-white rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                    <ReactQuill 
-                      theme="snow"
+                    <QuillEditor 
                       value={q.correctAnswer || ''}
                       onChange={content => handlePreviewChange(qIndex, 'correctAnswer', content)}
                       className="h-32 mb-12"
@@ -1373,8 +1365,7 @@ export const QuestionBank: React.FC = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Giải thích (Tùy chọn)</label>
                 <div className="bg-white rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                  <ReactQuill 
-                    theme="snow"
+                  <QuillEditor 
                     value={q.explanation || ''}
                     onChange={content => handlePreviewChange(qIndex, 'explanation', content)}
                     className="h-32 mb-12"

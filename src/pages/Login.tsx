@@ -64,7 +64,7 @@ export const Login: React.FC = () => {
           
           <h1 className="text-3xl font-bold mb-3 text-center">CHÀO MỪNG BẠN TRỞ LẠI!</h1>
           <p className="text-center text-sm mb-10 px-4 opacity-90 leading-relaxed">
-            Để duy trì kết nối với chúng tôi<br/>vui lòng đăng nhập bằng thông tin cá nhân của bạn
+            'Học tập là cách bạn lớn lên, trở nên mạnh mẽ, và truyền cảm hứng cho người khác.' - Michelle Obama
           </p>
           
           <div className="mt-12 text-[10px] opacity-70 tracking-widest uppercase">

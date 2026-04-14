@@ -5,8 +5,7 @@ import { Lesson, Subject, Topic, Assignment, Submission, User, InteractiveBlock,
 import { Modal } from '../../components/Modal';
 import { GoogleGenAI } from '@google/genai';
 import { ensureArray } from '../../core/utils/data';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { QuillEditor } from '../../components/QuillEditor';
 
 export const AssignmentManagement = () => {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -1090,8 +1089,7 @@ export const AssignmentManagement = () => {
               </button>
             </div>
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={formData.content || ''}
                 onChange={content => setFormData({...formData, content})}
                 className="h-40 mb-12"
@@ -1226,8 +1224,7 @@ export const AssignmentManagement = () => {
 
                   {block.type === 'text' && (
                     <div className="bg-white rounded-lg overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
-                      <ReactQuill 
-                        theme="snow"
+                      <QuillEditor 
                         value={block.data.content}
                         onChange={content => updateBlockData(block.id, { content })}
                         className="h-32 mb-12"
@@ -2383,8 +2380,7 @@ export const AssignmentManagement = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung câu hỏi</label>
             <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-              <ReactQuill 
-                theme="snow"
+              <QuillEditor 
                 value={questionForm.content || ''}
                 onChange={content => setQuestionForm({...questionForm, content})}
                 className="h-32 mb-12"
@@ -2459,8 +2455,7 @@ export const AssignmentManagement = () => {
                     </div>
                   </div>
                   <div className="bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
-                    <ReactQuill 
-                      theme="snow"
+                    <QuillEditor 
                       value={sq.content || ''}
                       onChange={content => {
                         const currentSubs = Array.isArray(questionForm.subQuestions) ? questionForm.subQuestions : (typeof questionForm.subQuestions === 'string' ? JSON.parse(questionForm.subQuestions) : []);
