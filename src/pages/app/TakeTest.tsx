@@ -36,11 +36,23 @@ export const TakeTest: React.FC = () => {
     setActivityLog(prev => [...prev, { time: now, event }]);
   };
 
-  const enterFullscreen = () => {
-    if (containerRef.current) {
-      if (containerRef.current.requestFullscreen) {
-        containerRef.current.requestFullscreen();
+  const enterFullscreen = async () => {
+    try {
+      const elem = containerRef.current as any;
+      if (elem?.requestFullscreen) {
+        await elem.requestFullscreen();
+      } else if (elem?.webkitRequestFullscreen) {
+        await elem.webkitRequestFullscreen();
+      } else if (elem?.msRequestFullscreen) {
+        await elem.msRequestFullscreen();
+      } else {
+        // Fallback for iOS Safari / unsupported browsers
+        setIsFullscreen(true);
       }
+    } catch (err) {
+      console.warn("Fullscreen request failed", err);
+      // Fallback if request fails
+      setIsFullscreen(true);
     }
   };
 
@@ -67,7 +79,11 @@ export const TakeTest: React.FC = () => {
     };
 
     const handleFullscreenChange = () => {
-      const isFull = !!document.fullscreenElement;
+      const isFull = !!(
+        document.fullscreenElement || 
+        (document as any).webkitFullscreenElement || 
+        (document as any).msFullscreenElement
+      );
       setIsFullscreen(isFull);
       if (!isFull && !isSubmitting && test) {
         setViolations(prev => prev + 1);
@@ -98,6 +114,8 @@ export const TakeTest: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     window.addEventListener('keydown', preventShortcuts);
     window.addEventListener('contextmenu', preventContextMenu);
 
@@ -105,6 +123,8 @@ export const TakeTest: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
       window.removeEventListener('keydown', preventShortcuts);
       window.removeEventListener('contextmenu', preventContextMenu);
     };
