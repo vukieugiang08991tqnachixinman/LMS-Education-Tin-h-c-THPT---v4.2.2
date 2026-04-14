@@ -26,6 +26,7 @@ export const TakeTest: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showViolationWarning, setShowViolationWarning] = useState(false);
   const [lastViolationMsg, setLastViolationMsg] = useState('');
+  const [isTimeUp, setIsTimeUp] = useState(false);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -141,7 +142,29 @@ export const TakeTest: React.FC = () => {
           testData.questions = shuffledQuestions;
         }
         setTest(testData);
-        setTimeLeft(testData.durationMinutes * 60);
+        
+        // Calculate actual remaining time based on access time
+        const durationMinutes = testData.durationMinutes;
+        const startTime = new Date(testData.startTime);
+        const endTime = new Date(testData.endTime);
+        const currentTime = new Date();
+        
+        let remainingMinutes = 0;
+        
+        if (currentTime <= startTime) {
+          // Case 1: Vào đúng giờ hoặc sớm hơn
+          remainingMinutes = durationMinutes;
+        } else if (currentTime > startTime && currentTime < endTime) {
+          // Case 2: Vào muộn
+          const lateMilliseconds = currentTime.getTime() - startTime.getTime();
+          const lateMinutes = lateMilliseconds / (1000 * 60);
+          remainingMinutes = Math.max(0, durationMinutes - lateMinutes);
+        } else {
+          // Case 3: Vào sau giờ kết thúc
+          remainingMinutes = 0;
+        }
+        
+        setTimeLeft(Math.floor(remainingMinutes * 60));
       } catch (error) {
         console.error("Test not found", error);
         navigate('/app/tests');
@@ -153,15 +176,16 @@ export const TakeTest: React.FC = () => {
   }, [id, navigate]);
 
   useEffect(() => {
-    if (timeLeft > 0 && !isSubmitting) {
+    if (timeLeft > 0 && !isSubmitting && !isTimeUp) {
       timerRef.current = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0 && test && !isSubmitting) {
+    } else if (timeLeft <= 0 && test && !isSubmitting && !isTimeUp) {
+      setIsTimeUp(true);
       handleSubmit();
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeLeft, isSubmitting, test]);
+  }, [timeLeft, isSubmitting, test, isTimeUp]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -508,7 +532,9 @@ export const TakeTest: React.FC = () => {
                 {currentQuestion.type === 'multiple_choice' && ensureArray(currentQuestion.options).map((opt: string, idx: number) => (
                   <label 
                     key={idx} 
-                    className={`flex items-center gap-3 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-2xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-center gap-3 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-2xl border-2 transition-all ${
+                      isSubmitting || isTimeUp ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+                    } ${
                       answers[currentQuestion.id] === opt 
                         ? 'border-indigo-600 bg-indigo-50/50 shadow-md shadow-indigo-50' 
                         : 'border-slate-50 hover:border-indigo-200 bg-slate-50/30'
@@ -524,8 +550,11 @@ export const TakeTest: React.FC = () => {
                       name={`question-${currentQuestion.id}`}
                       value={opt}
                       checked={answers[currentQuestion.id] === opt}
-                      onChange={() => handleAnswerChange(currentQuestion.id, opt)}
+                      onChange={() => {
+                        if (!isSubmitting && !isTimeUp) handleAnswerChange(currentQuestion.id, opt);
+                      }}
                       className="hidden"
+                      disabled={isSubmitting || isTimeUp}
                     />
                     <span className={`text-base md:text-lg font-medium ${answers[currentQuestion.id] === opt ? 'text-indigo-900' : 'text-slate-600'}`}>
                       {opt}
@@ -543,8 +572,13 @@ export const TakeTest: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 md:gap-3 shrink-0 w-full md:w-auto">
                           <button
-                            onClick={() => handleAnswerChange(currentQuestion.id, true, sq.id)}
+                            onClick={() => {
+                              if (!isSubmitting && !isTimeUp) handleAnswerChange(currentQuestion.id, true, sq.id);
+                            }}
+                            disabled={isSubmitting || isTimeUp}
                             className={`flex-1 md:flex-none px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                              isSubmitting || isTimeUp ? 'cursor-not-allowed opacity-70' : ''
+                            } ${
                               answers[currentQuestion.id]?.[sq.id] === true
                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
                                 : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'
@@ -553,8 +587,13 @@ export const TakeTest: React.FC = () => {
                             Đúng
                           </button>
                           <button
-                            onClick={() => handleAnswerChange(currentQuestion.id, false, sq.id)}
+                            onClick={() => {
+                              if (!isSubmitting && !isTimeUp) handleAnswerChange(currentQuestion.id, false, sq.id);
+                            }}
+                            disabled={isSubmitting || isTimeUp}
                             className={`flex-1 md:flex-none px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                              isSubmitting || isTimeUp ? 'cursor-not-allowed opacity-70' : ''
+                            } ${
                               answers[currentQuestion.id]?.[sq.id] === false
                                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100'
                                 : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'
@@ -572,19 +611,29 @@ export const TakeTest: React.FC = () => {
                   <input 
                     type="text"
                     value={answers[currentQuestion.id] || ''}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    onChange={(e) => {
+                      if (!isSubmitting && !isTimeUp) handleAnswerChange(currentQuestion.id, e.target.value);
+                    }}
+                    disabled={isSubmitting || isTimeUp}
                     placeholder="Nhập câu trả lời của bạn tại đây..."
-                    className="w-full p-4 md:p-6 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-base md:text-lg font-medium"
+                    className={`w-full p-4 md:p-6 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-base md:text-lg font-medium ${
+                      isSubmitting || isTimeUp ? 'cursor-not-allowed opacity-70' : ''
+                    }`}
                   />
                 )}
 
                 {currentQuestion.type === 'essay' && (
                   <textarea 
                     value={answers[currentQuestion.id] || ''}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    onChange={(e) => {
+                      if (!isSubmitting && !isTimeUp) handleAnswerChange(currentQuestion.id, e.target.value);
+                    }}
+                    disabled={isSubmitting || isTimeUp}
                     placeholder="Trình bày chi tiết bài làm của bạn..."
                     rows={10}
-                    className="w-full p-4 md:p-6 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-base md:text-lg leading-relaxed"
+                    className={`w-full p-4 md:p-6 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-base md:text-lg leading-relaxed ${
+                      isSubmitting || isTimeUp ? 'cursor-not-allowed opacity-70' : ''
+                    }`}
                   />
                 )}
               </div>
@@ -659,7 +708,7 @@ export const TakeTest: React.FC = () => {
       </Modal>
 
       {/* Fullscreen Overlay */}
-      {!isFullscreen && !loading && test && !isSubmitting && (
+      {!isFullscreen && !loading && test && !isSubmitting && !isTimeUp && (
         <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-6">
           <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3rem] shadow-2xl max-w-lg text-center border border-slate-100 w-full">
             <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-100 text-indigo-600 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8">
@@ -675,6 +724,34 @@ export const TakeTest: React.FC = () => {
             >
               Bắt đầu làm bài ngay
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Time Up Overlay */}
+      {isTimeUp && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-6">
+          <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3rem] shadow-2xl max-w-lg text-center border border-slate-100 w-full">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-rose-100 text-rose-600 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-6 md:mb-8">
+              <Timer size={32} className="md:w-10 md:h-10" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-3 md:mb-4">Hết giờ làm bài!</h2>
+            <p className="text-slate-600 mb-8 md:mb-10 text-base md:text-lg leading-relaxed">
+              Hệ thống đang tự động thu bài của bạn. Vui lòng không đóng trình duyệt.
+            </p>
+            {isSubmitting ? (
+              <div className="flex items-center justify-center gap-3 text-indigo-600 font-bold">
+                <Loader2 size={24} className="animate-spin" />
+                Đang nộp bài...
+              </div>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                className="w-full py-4 md:py-5 bg-indigo-600 text-white rounded-xl md:rounded-2xl font-black text-lg md:text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95"
+              >
+                Thử nộp lại
+              </button>
+            )}
           </div>
         </div>
       )}

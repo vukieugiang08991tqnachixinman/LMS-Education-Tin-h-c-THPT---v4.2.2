@@ -13,9 +13,11 @@ export const TestSubmissions: React.FC = () => {
   const navigate = useNavigate();
   const [test, setTest] = useState<Test | null>(null);
   const [submissions, setSubmissions] = useState<(Submission & { student?: User, class?: Class })[]>([]);
+  const [missingStudents, setMissingStudents] = useState<(User & { class?: Class })[]>([]);
   const [search, setSearch] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState<(Submission & { student?: User, class?: Class }) | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'submitted' | 'missing'>('submitted');
 
   const fetchData = async () => {
     if (!id) return;
@@ -38,6 +40,29 @@ export const TestSubmissions: React.FC = () => {
       });
 
       setSubmissions(enrichedSubmissions);
+
+      // Calculate missing students
+      let assignedStudents: User[] = [];
+      if (testData.assignedTo?.type === 'class') {
+        assignedStudents = allStudents.filter(s => s.classId && testData.assignedTo.ids.includes(s.classId));
+      } else if (testData.assignedTo?.type === 'grade') {
+        const targetClasses = allClasses.filter(c => testData.assignedTo.ids.includes(c.grade.toString()));
+        const targetClassIds = targetClasses.map(c => c.id);
+        assignedStudents = allStudents.filter(s => s.classId && targetClassIds.includes(s.classId));
+      }
+
+      const submittedStudentIds = new Set(allSubmissions.map(sub => sub.studentId));
+      const missing = assignedStudents.filter(s => !submittedStudentIds.has(s.id));
+
+      const enrichedMissing = missing.map(student => {
+        const studentClass = allClasses.find(c => c.id === student.classId);
+        return {
+          ...student,
+          class: studentClass
+        };
+      });
+
+      setMissingStudents(enrichedMissing);
     } catch (error) {
       console.error("Error fetching submissions", error);
     }
@@ -52,6 +77,11 @@ export const TestSubmissions: React.FC = () => {
   const filteredSubmissions = submissions.filter(sub => 
     (sub.student?.fullName || sub.student?.username || '').toLowerCase().includes(search.toLowerCase()) ||
     (sub.class?.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredMissing = missingStudents.filter(student => 
+    (student.fullName || student.username || '').toLowerCase().includes(search.toLowerCase()) ||
+    (student.class?.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -104,6 +134,24 @@ export const TestSubmissions: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="flex border-b border-gray-100">
+          <button
+            onClick={() => setActiveTab('submitted')}
+            className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${
+              activeTab === 'submitted' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Đã nộp ({submissions.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('missing')}
+            className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${
+              activeTab === 'missing' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Chưa nộp ({missingStudents.length})
+          </button>
+        </div>
         <div className="p-4 border-b border-gray-100">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -118,55 +166,92 @@ export const TestSubmissions: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-3 px-6 text-sm font-semibold text-gray-600">Học sinh</th>
-                <th className="py-3 px-6 text-sm font-semibold text-gray-600">Lớp</th>
-                <th className="py-3 px-6 text-sm font-semibold text-gray-600">Thời gian nộp</th>
-                <th className="py-3 px-6 text-sm font-semibold text-gray-600">Điểm số</th>
-                <th className="py-3 px-6 text-sm font-semibold text-gray-600 text-right">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSubmissions.length > 0 ? filteredSubmissions.map(sub => (
-                <tr key={sub.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-6 font-medium text-gray-900">
-                    {sub.student?.fullName || sub.student?.username || 'Học sinh ẩn danh'}
-                  </td>
-                  <td className="py-4 px-6 text-gray-600">
-                    {sub.class?.name || 'Không có lớp'}
-                  </td>
-                  <td className="py-4 px-6 text-gray-600">
-                    {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('vi-VN') : 'N/A'}
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-bold ${
-                      sub.score !== undefined && sub.score >= 5 ? 'bg-emerald-100 text-emerald-800' : 
-                      sub.score !== undefined ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {sub.score !== undefined ? sub.score : 'Chưa chấm'}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button 
-                      onClick={() => {
-                        setSelectedSubmission(sub);
-                        setIsModalOpen(true);
-                      }}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium text-sm"
-                    >
-                      Xem chi tiết
-                    </button>
-                  </td>
+          {activeTab === 'submitted' ? (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Học sinh</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Lớp</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Thời gian nộp</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Điểm số</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600 text-right">Chi tiết</th>
                 </tr>
-              )) : (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">Không có bài nộp nào.</td>
+              </thead>
+              <tbody>
+                {filteredSubmissions.length > 0 ? filteredSubmissions.map(sub => (
+                  <tr key={sub.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-6 font-medium text-gray-900">
+                      {sub.student?.fullName || sub.student?.username || 'Học sinh ẩn danh'}
+                    </td>
+                    <td className="py-4 px-6 text-gray-600">
+                      {sub.class?.name || 'Không có lớp'}
+                    </td>
+                    <td className="py-4 px-6 text-gray-600">
+                      {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('vi-VN') : 'N/A'}
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-bold ${
+                        sub.score !== undefined && sub.score >= 5 ? 'bg-emerald-100 text-emerald-800' : 
+                        sub.score !== undefined ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {sub.score !== undefined ? sub.score : 'Chưa chấm'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button 
+                        onClick={() => {
+                          setSelectedSubmission(sub);
+                          setIsModalOpen(true);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium text-sm"
+                      >
+                        Xem chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-500">Không có bài nộp nào.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Học sinh</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Tên đăng nhập</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600">Lớp</th>
+                  <th className="py-3 px-6 text-sm font-semibold text-gray-600 text-right">Trạng thái</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredMissing.length > 0 ? filteredMissing.map(student => (
+                  <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-6 font-medium text-gray-900">
+                      {student.fullName || 'Chưa cập nhật'}
+                    </td>
+                    <td className="py-4 px-6 text-gray-600">
+                      {student.username}
+                    </td>
+                    <td className="py-4 px-6 text-gray-600">
+                      {student.class?.name || 'Không có lớp'}
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-bold bg-amber-100 text-amber-800">
+                        Chưa nộp bài
+                      </span>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">Tất cả học sinh đã nộp bài.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
