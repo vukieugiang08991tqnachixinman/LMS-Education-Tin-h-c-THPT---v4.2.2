@@ -838,13 +838,13 @@ export const TestManagement: React.FC = () => {
                     </div>
                   </div>
                   <div 
-                    className="text-gray-900 text-sm mb-2"
+                    className="text-gray-900 text-sm mb-2 break-words"
                     dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
                   />
                   {q.type === 'multiple_choice' && (
                     <ul className="list-disc list-inside text-sm text-gray-600 ml-2">
                       {ensureArray(q.options).map((opt: string, i: number) => (
-                        <li key={i} className={opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}>
+                        <li key={i} className={`break-words ${opt === q.correctAnswer ? 'text-emerald-600 font-medium' : ''}`}>
                           {opt}
                         </li>
                       ))}
@@ -854,15 +854,15 @@ export const TestManagement: React.FC = () => {
                     <div className="mt-2 space-y-1">
                       {ensureArray(q.subQuestions).map((sq: any, i: number) => (
                         <div key={i} className="text-sm flex items-start gap-2">
-                          <span className="font-medium text-gray-700">{sq.id})</span>
+                          <span className="font-medium text-gray-700 shrink-0">{sq.id})</span>
                           <div 
-                            className="text-gray-600 flex-1"
+                            className="text-gray-600 flex-1 min-w-0 break-words"
                             dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
                           />
-                          <span className="text-xs text-gray-500 italic">
+                          <span className="text-xs text-gray-500 italic shrink-0">
                             ({sq.difficulty === 'recognition' ? 'Nhận biết' : sq.difficulty === 'understanding' ? 'Thông hiểu' : 'Vận dụng'})
                           </span>
-                          <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <span className={`font-medium shrink-0 ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
                             {sq.correctAnswer ? 'Đúng' : 'Sai'}
                           </span>
                         </div>

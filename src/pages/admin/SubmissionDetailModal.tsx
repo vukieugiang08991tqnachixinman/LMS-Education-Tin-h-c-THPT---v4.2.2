@@ -30,6 +30,9 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileBase64, setUploadedFileBase64] = useState<string | null>(null);
 
+  const [activityLog, setActivityLog] = useState<{time: string, event: string}[]>([]);
+  const [violations, setViolations] = useState(0);
+
   useEffect(() => {
     if (submission) {
       let parsedAnswers = {};
@@ -42,6 +45,15 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
       }
       setAnswers(parsedAnswers);
       
+      let parsedLog: any = null;
+      try {
+        parsedLog = submission.feedback ? JSON.parse(submission.feedback) : null;
+      } catch(e) {
+        // Not a JSON string
+      }
+      setActivityLog(parsedLog?.activityLog || []);
+      setViolations(parsedLog?.violations || 0);
+
       const initialScores: Record<string, number> = {};
       const initialFeedbacks: Record<string, string> = {};
       
@@ -205,7 +217,11 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
       const payload: Partial<Submission> = {
         score: finalScore,
         content: JSON.stringify(newAnswers),
-        feedback: "Đã chấm điểm"
+        feedback: JSON.stringify({
+          violations,
+          activityLog,
+          teacherFeedback: "Đã chấm điểm"
+        })
       };
       
       if (uploadedFileBase64) {
@@ -253,6 +269,24 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
             </button>
           </div>
         </div>
+
+        {violations > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
+              <AlertCircle size={20} className="text-red-600" />
+              Cảnh báo vi phạm ({violations} lần)
+            </h3>
+            {activityLog.length > 0 && (
+              <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
+                {activityLog.map((log, index) => (
+                  <li key={index}>
+                    <span className="font-medium">{log.time}</span>: {log.event}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <h3 className="font-bold text-gray-900 mb-3">File bài làm (Tùy chọn)</h3>
@@ -311,9 +345,12 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                       {ensureArray(q.subQuestions).map(sq => {
                         const sAns = (studentAnswer || {})[sq.id];
                         return (
-                          <div key={sq.id} className="flex justify-between items-center">
-                            <span><span className="font-medium">{sq.id})</span> <span dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} /></span>
-                            <div className="flex gap-4">
+                          <div key={sq.id} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium mr-1">{sq.id})</span> 
+                              <span className="break-words" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
+                            </div>
+                            <div className="flex gap-4 shrink-0">
                               <span className="text-gray-500">HS chọn: <span className={sAns === sq.correctAnswer ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{sAns !== undefined ? (sAns ? 'Đúng' : 'Sai') : 'Trống'}</span></span>
                               <span className="text-gray-500">Đáp án: <span className="font-bold text-gray-900">{sq.correctAnswer ? 'Đúng' : 'Sai'}</span></span>
                             </div>
