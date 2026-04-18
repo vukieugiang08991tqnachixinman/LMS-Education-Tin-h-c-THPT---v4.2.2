@@ -346,9 +346,9 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                         const sAns = (studentAnswer || {})[sq.id];
                         return (
                           <div key={sq.id} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
-                            <div className="flex-1 min-w-0">
-                              <span className="font-medium mr-1">{sq.id})</span> 
-                              <span className="break-words" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
+                            <div className="flex-1 min-w-0 flex items-start">
+                              <span className="font-medium mr-1 shrink-0">{sq.id})</span> 
+                              <div className="break-words flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
                             </div>
                             <div className="flex gap-4 shrink-0">
                               <span className="text-gray-500">HS chọn: <span className={sAns === sq.correctAnswer ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{sAns !== undefined ? (sAns ? 'Đúng' : 'Sai') : 'Trống'}</span></span>

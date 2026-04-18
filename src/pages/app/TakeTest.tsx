@@ -588,7 +588,7 @@ export const TakeTest: React.FC = () => {
                       <div key={`${sq.id || 'sq'}-${sqIdx}`} className="p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
                         <div className="flex-1 min-w-0 text-base md:text-lg font-medium text-slate-700 flex items-start">
                           <span className="text-indigo-600 font-black mr-2 md:mr-3 shrink-0">{String.fromCharCode(97 + sqIdx)})</span>
-                          <div className="break-words" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
+                          <div className="break-words flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
                         </div>
                         <div className="flex items-center gap-2 md:gap-3 shrink-0 w-full md:w-auto">
                           <button
