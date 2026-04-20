@@ -86,7 +86,7 @@ export const StudentManagement: React.FC = () => {
     }
   };
 
-  const grades = [10, 11, 12];
+  const grades = [6, 7, 8, 9, 10, 11, 12];
   
   const classStudents = students.filter(s => String(s.classId) === String(selectedClassId));
   const filteredStudents = classStudents.filter(s => 

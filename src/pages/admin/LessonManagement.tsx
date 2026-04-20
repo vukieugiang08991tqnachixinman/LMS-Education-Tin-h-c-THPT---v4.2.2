@@ -855,6 +855,10 @@ const LessonManagement = () => {
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           >
             <option value="">Tất cả</option>
+            <option value="6">Khối 6</option>
+            <option value="7">Khối 7</option>
+            <option value="8">Khối 8</option>
+            <option value="9">Khối 9</option>
             <option value="10">Khối 10</option>
             <option value="11">Khối 11</option>
             <option value="12">Khối 12</option>
@@ -1057,6 +1061,10 @@ const LessonManagement = () => {
                 onChange={e => setFormData({...formData, grade: e.target.value, classId: ''})}
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               >
+                <option value="6">Khối 6</option>
+                <option value="7">Khối 7</option>
+                <option value="8">Khối 8</option>
+                <option value="9">Khối 9</option>
                 <option value="10">Khối 10</option>
                 <option value="11">Khối 11</option>
                 <option value="12">Khối 12</option>

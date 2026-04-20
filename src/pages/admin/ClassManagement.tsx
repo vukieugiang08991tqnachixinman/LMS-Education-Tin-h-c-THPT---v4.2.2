@@ -172,6 +172,10 @@ export const ClassManagement: React.FC = () => {
               onChange={e => setFormData({...formData, grade: Number(e.target.value)})}
               className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
+              <option value={6}>Khối 6</option>
+              <option value={7}>Khối 7</option>
+              <option value={8}>Khối 8</option>
+              <option value={9}>Khối 9</option>
               <option value={10}>Khối 10</option>
               <option value={11}>Khối 11</option>
               <option value={12}>Khối 12</option>

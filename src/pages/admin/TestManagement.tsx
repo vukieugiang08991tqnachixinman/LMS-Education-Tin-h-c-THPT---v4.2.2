@@ -734,7 +734,7 @@ export const TestManagement: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {['10', '11', '12'].map(g => (
+                {['6', '7', '8', '9', '10', '11', '12'].map(g => (
                   <label key={g} className="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50">
                     <input 
                       type="checkbox" 
