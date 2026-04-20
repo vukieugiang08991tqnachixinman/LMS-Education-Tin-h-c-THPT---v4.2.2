@@ -161,7 +161,7 @@ export const StudentDashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-indigo-50 mb-8 text-lg opacity-90">
-            Hôm nay là một ngày tuyệt vời để khám phá thêm những kiến thức thú vị về Tin học. Bạn đã sẵn sàng chưa? 🚀
+            " Nếu bạn sinh ra trong nghèo khó, đó không phải là lỗi của bạn. Nhưng nếu bạn chết trong nghèo khó, đó là lỗi của bạn - Bill Gates" 🚀
           </p>
           <div className="flex flex-wrap gap-4">
             <button 
