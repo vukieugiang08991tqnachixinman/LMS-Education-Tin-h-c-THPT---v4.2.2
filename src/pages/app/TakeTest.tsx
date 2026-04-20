@@ -17,7 +17,7 @@ export const TakeTest: React.FC = () => {
   const [test, setTest] = useState<Test | null>(null);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -172,13 +172,14 @@ export const TakeTest: React.FC = () => {
         let remainingMinutes = 0;
         
         if (currentTime <= startTime) {
-          // Case 1: Vào đúng giờ hoặc sớm hơn
+          // Case 1: Vào sớm hơn hoặc đúng giờ
           remainingMinutes = durationMinutes;
         } else if (currentTime > startTime && currentTime < endTime) {
-          // Case 2: Vào muộn
-          const lateMilliseconds = currentTime.getTime() - startTime.getTime();
-          const lateMinutes = lateMilliseconds / (1000 * 60);
-          remainingMinutes = Math.max(0, durationMinutes - lateMinutes);
+          // Case 2: Đang trong thời gian cho phép làm bài
+          const msUntilEnd = endTime.getTime() - currentTime.getTime();
+          const minutesUntilEnd = msUntilEnd / (1000 * 60);
+          // Học sinh chỉ có tối đa thời gian quy định, nhưng không vượt qua hạn chót của bài kiểm tra
+          remainingMinutes = Math.max(0, Math.min(durationMinutes, minutesUntilEnd));
         } else {
           // Case 3: Vào sau giờ kết thúc
           remainingMinutes = 0;
@@ -196,9 +197,9 @@ export const TakeTest: React.FC = () => {
   }, [id, navigate]);
 
   useEffect(() => {
-    if (timeLeft > 0 && !isSubmitting && !isTimeUp) {
-      timerRef.current = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft <= 0 && test && !isSubmitting && !isTimeUp) {
+    if (timeLeft !== null && timeLeft > 0 && !isSubmitting && !isTimeUp) {
+      timerRef.current = setTimeout(() => setTimeLeft(prev => prev! - 1), 1000);
+    } else if (timeLeft !== null && timeLeft <= 0 && test && !isSubmitting && !isTimeUp) {
       setIsTimeUp(true);
       handleSubmit();
     }
@@ -242,7 +243,7 @@ export const TakeTest: React.FC = () => {
       }
     }
 
-    if (timeLeft > 0 && !isComplete) {
+    if (timeLeft !== null && timeLeft > 0 && !isComplete) {
       setShowConfirmSubmit(true);
     } else {
       handleSubmit();
@@ -443,10 +444,10 @@ export const TakeTest: React.FC = () => {
           </div>
 
           <div className={`flex items-center gap-2 md:gap-3 px-3 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-mono text-base md:text-xl font-black shadow-sm transition-colors shrink-0 ${
-            timeLeft < 300 ? 'bg-rose-50 text-rose-600 animate-pulse' : 'bg-indigo-50 text-indigo-600'
+            (timeLeft || 0) < 300 ? 'bg-rose-50 text-rose-600 animate-pulse' : 'bg-indigo-50 text-indigo-600'
           }`}>
             <Timer size={20} className="md:w-6 md:h-6" />
-            {formatTime(timeLeft)}
+            {formatTime(timeLeft || 0)}
           </div>
         </div>
         
