@@ -164,25 +164,29 @@ export const TakeTest: React.FC = () => {
         setTest(testData);
         
         // Calculate actual remaining time based on access time
-        const durationMinutes = testData.durationMinutes;
-        const startTime = new Date(testData.startTime);
-        const endTime = new Date(testData.endTime);
-        const currentTime = new Date();
-        
-        let remainingMinutes = 0;
-        
-        if (currentTime <= startTime) {
-          // Case 1: Vào sớm hơn hoặc đúng giờ
-          remainingMinutes = durationMinutes;
-        } else if (currentTime > startTime && currentTime < endTime) {
-          // Case 2: Đang trong thời gian cho phép làm bài
-          const msUntilEnd = endTime.getTime() - currentTime.getTime();
-          const minutesUntilEnd = msUntilEnd / (1000 * 60);
-          // Học sinh chỉ có tối đa thời gian quy định, nhưng không vượt qua hạn chót của bài kiểm tra
-          remainingMinutes = Math.max(0, Math.min(durationMinutes, minutesUntilEnd));
-        } else {
-          // Case 3: Vào sau giờ kết thúc
-          remainingMinutes = 0;
+        const durationMinutes = testData.durationMinutes || 45;
+        let remainingMinutes = durationMinutes;
+
+        if (testData.startTime && testData.endTime) {
+          const startTime = new Date(testData.startTime);
+          const endTime = new Date(testData.endTime);
+          const currentTime = new Date();
+
+          if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
+            if (currentTime <= startTime) {
+              // Case 1: Vào sớm hơn hoặc đúng giờ
+              remainingMinutes = durationMinutes;
+            } else if (currentTime > startTime && currentTime < endTime) {
+              // Case 2: Đang trong thời gian cho phép làm bài
+              const msUntilEnd = endTime.getTime() - currentTime.getTime();
+              const minutesUntilEnd = msUntilEnd / (1000 * 60);
+              // Học sinh chỉ có tối đa thời gian quy định, nhưng không vượt qua hạn chót của bài kiểm tra
+              remainingMinutes = Math.max(0, Math.min(durationMinutes, minutesUntilEnd));
+            } else {
+              // Case 3: Vào sau giờ kết thúc
+              remainingMinutes = 0;
+            }
+          }
         }
         
         setTimeLeft(Math.floor(remainingMinutes * 60));
@@ -544,7 +548,7 @@ export const TakeTest: React.FC = () => {
                 </div>
 
                 <div 
-                  className="text-xl md:text-2xl font-bold text-slate-900 leading-snug overflow-x-auto break-words"
+                  className="html-content text-xl md:text-2xl font-bold text-slate-900 leading-snug"
                   dangerouslySetInnerHTML={{ __html: String(currentQuestion.content || '') }}
                 />
               </div>
@@ -589,7 +593,7 @@ export const TakeTest: React.FC = () => {
                       <div key={`${sq.id || 'sq'}-${sqIdx}`} className="p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
                         <div className="flex-1 min-w-0 text-base md:text-lg font-medium text-slate-700 flex items-start">
                           <span className="text-indigo-600 font-black mr-2 md:mr-3 shrink-0">{String.fromCharCode(97 + sqIdx)})</span>
-                          <div className="break-words flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
+                          <div className="html-content flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
                         </div>
                         <div className="flex items-center gap-2 md:gap-3 shrink-0 w-full md:w-auto">
                           <button

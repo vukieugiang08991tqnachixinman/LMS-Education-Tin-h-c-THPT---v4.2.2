@@ -784,7 +784,7 @@ export const LessonDetail = () => {
               {ensureArray(lesson.essayQuestions).map((question, index) => (
                 <div key={question.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                   <div 
-                    className="text-md font-bold text-gray-900 mb-3"
+                    className="html-content text-md font-bold text-gray-900 mb-3"
                     dangerouslySetInnerHTML={{ __html: `Câu ${index + 1}: ${question.content}` }}
                   />
                   <div className="space-y-3">
@@ -859,7 +859,7 @@ export const LessonDetail = () => {
                           <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                             <h5 className="text-sm font-bold text-gray-700 mb-2">Bài làm của bạn:</h5>
                             <div 
-                              className="text-gray-600 whitespace-pre-wrap text-sm"
+                              className="text-gray-600 whitespace-pre-wrap text-sm break-words overflow-x-auto"
                               dangerouslySetInnerHTML={{ __html: String(submission.content || '') }}
                             />
                             {submission.fileName && (

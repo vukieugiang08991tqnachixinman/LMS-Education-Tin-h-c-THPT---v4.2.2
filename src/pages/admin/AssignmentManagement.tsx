@@ -1942,13 +1942,13 @@ export const AssignmentManagement = () => {
                         {q.type === 'true_false' && (
                           <div className="mt-2 space-y-1">
                             {ensureArray(q.subQuestions).map((sq: any, i: number) => (
-                              <div key={i} className="text-sm flex items-start gap-2">
-                                <span className="font-medium text-gray-700">{sq.id})</span>
+                              <div key={i} className="text-sm flex items-start gap-2 min-w-0">
+                                <span className="font-medium text-gray-700 shrink-0">{sq.id})</span>
                                 <div 
-                                  className="text-gray-600 flex-1"
+                                  className="html-content text-gray-600 flex-1 min-w-0"
                                   dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
                                 />
-                                <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                                <span className={`font-medium shrink-0 ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
                                   {sq.correctAnswer ? 'Đúng' : 'Sai'}
                                 </span>
                               </div>
@@ -2297,13 +2297,13 @@ export const AssignmentManagement = () => {
                         {q.type === 'true_false' && (
                           <div className="mt-2 space-y-1">
                             {ensureArray(q.subQuestions).map((sq: any, i: number) => (
-                              <div key={i} className="text-sm flex items-start gap-2">
-                                <span className="font-medium text-gray-700">{sq.id})</span>
+                              <div key={i} className="text-sm flex items-start gap-2 min-w-0">
+                                <span className="font-medium text-gray-700 shrink-0">{sq.id})</span>
                                 <div 
-                                  className="text-gray-600 flex-1"
+                                  className="html-content text-gray-600 flex-1 min-w-0"
                                   dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
                                 />
-                                <span className={`font-medium ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
+                                <span className={`font-medium shrink-0 ${sq.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
                                   {sq.correctAnswer ? 'Đúng' : 'Sai'}
                                 </span>
                               </div>

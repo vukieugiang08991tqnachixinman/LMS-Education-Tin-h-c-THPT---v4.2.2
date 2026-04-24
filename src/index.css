@@ -39,3 +39,18 @@
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600;
 }
+
+/* Fix for WYSIWYG HTML content overflowing containers */
+.html-content {
+  @apply break-words min-w-0 max-w-full;
+  overflow-wrap: anywhere; /* Ensures aggressive wrapping */
+  word-wrap: break-word; /* Fallback for older browsers */
+}
+.html-content * {
+  @apply max-w-full break-words;
+  white-space: normal !important; /* Force normal wrapping, override any nowrap styles */
+  overflow-wrap: anywhere;
+}
+.html-content img, .html-content video, .html-content iframe {
+  @apply max-w-full h-auto object-contain;
+}

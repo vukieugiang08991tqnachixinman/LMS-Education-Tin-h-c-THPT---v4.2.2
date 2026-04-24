@@ -124,6 +124,24 @@ export const hybridProvider: DataProvider = {
     }
     
     let list = data[resource] || [];
+
+    // Deduplicate submissions (take highest score) to fix multi-device duplicate submissions
+    if (resource === 'submissions') {
+      const dedupedMap = new Map();
+      for (const sub of list) {
+        const key = `sub_${sub.studentId}_${sub.testId || sub.assignmentId}`;
+        if (!dedupedMap.has(key)) {
+          dedupedMap.set(key, sub);
+        } else {
+          const existing = dedupedMap.get(key);
+          if ((sub.score || 0) > (existing.score || 0)) {
+            dedupedMap.set(key, sub);
+          }
+        }
+      }
+      list = Array.from(dedupedMap.values());
+    }
+
     if (params) {
       list = list.filter((item: any) => {
         for (const key in params) {
@@ -247,17 +265,20 @@ export const hybridProvider: DataProvider = {
     );
     
     let newSubmission: Submission;
+    const deterministicId = `sub_${submission.studentId}_${submission.testId || submission.assignmentId}`;
+    
     if (existingIndex !== -1) {
       newSubmission = {
         ...data.submissions[existingIndex],
         ...submission,
+        id: deterministicId, // force deterministic ID
         submittedAt: new Date().toISOString()
       };
       data.submissions[existingIndex] = newSubmission;
     } else {
       newSubmission = {
         ...submission,
-        id: Math.random().toString(36).substr(2, 9),
+        id: deterministicId,
         submittedAt: new Date().toISOString()
       };
       data.submissions.push(newSubmission);

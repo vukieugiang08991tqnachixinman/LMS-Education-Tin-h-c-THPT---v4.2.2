@@ -19,6 +19,10 @@ export const StudentTests: React.FC = () => {
       setLoading(true);
 
       try {
+        if (dataProvider.syncWithGAS) {
+          await dataProvider.syncWithGAS();
+        }
+        
         const [allTests, allSubmissions, allClasses] = await Promise.all([
           dataProvider.getList<Test>('tests'),
           dataProvider.getList<Submission>('submissions', { studentId: currentUser.id }),

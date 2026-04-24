@@ -95,7 +95,7 @@ export const StudentAnnouncements: React.FC = () => {
                 </div>
                 
                 <div 
-                  className="text-slate-600 leading-relaxed text-lg"
+                  className="text-slate-600 leading-relaxed text-lg break-words overflow-x-auto"
                   dangerouslySetInnerHTML={{ __html: String(ann.content || '') }}
                 />
                 

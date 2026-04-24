@@ -316,12 +316,12 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
             return (
               <div key={`${q.id}-${idx}`} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <span className="text-sm font-bold text-indigo-600 uppercase tracking-wider block mb-1">
                       Câu {idx + 1} - {q.type === 'multiple_choice' ? 'Trắc nghiệm' : q.type === 'true_false' ? 'Đúng/Sai' : q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
                     </span>
                     <div 
-                      className="font-medium text-gray-900"
+                      className="html-content font-medium text-gray-900"
                       dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
                     />
                   </div>
@@ -348,7 +348,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                           <div key={sq.id} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
                             <div className="flex-1 min-w-0 flex items-start">
                               <span className="font-medium mr-1 shrink-0">{sq.id})</span> 
-                              <div className="break-words flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
+                              <div className="html-content flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
                             </div>
                             <div className="flex gap-4 shrink-0">
                               <span className="text-gray-500">HS chọn: <span className={sAns === sq.correctAnswer ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{sAns !== undefined ? (sAns ? 'Đúng' : 'Sai') : 'Trống'}</span></span>
@@ -368,7 +368,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                         <div className="pt-2 border-t border-gray-200">
                           <span className="text-gray-500 block mb-1">Đáp án / Hướng dẫn chấm:</span>
                           <div 
-                            className="font-medium text-emerald-700"
+                            className="font-medium text-emerald-700 break-words overflow-x-auto"
                             dangerouslySetInnerHTML={{ __html: String(q.correctAnswer) }}
                           />
                         </div>

@@ -22,6 +22,9 @@ export const TestResult: React.FC = () => {
       if (!currentUser) return;
 
       try {
+        if (dataProvider.syncWithGAS) {
+          await dataProvider.syncWithGAS();
+        }
         const testData = await dataProvider.getOne<Test>('tests', id);
         if (testData && testData.questions) {
           testData.questions = ensureArray(testData.questions).map(q => {
@@ -249,9 +252,9 @@ export const TestResult: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <div className="text-xl font-bold text-slate-900 leading-relaxed flex items-start">
+                      <div className="text-xl font-bold text-slate-900 leading-relaxed flex items-start min-w-0">
                         <span className="text-indigo-600 mr-2 shrink-0">Câu {idx + 1}.</span>
-                        <div dangerouslySetInnerHTML={{ __html: String(q.content || '') }} />
+                        <div className="html-content flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(q.content || '') }} />
                       </div>
                     </div>
                     
@@ -281,9 +284,9 @@ export const TestResult: React.FC = () => {
                           const isSubCorrect = sAns === sq.correctAnswer;
                           return (
                             <div key={`${sq.id || 'sq'}-${sqIndex}`} className="p-5 bg-white border border-slate-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                              <div className="flex-1 flex items-start gap-3">
+                              <div className="flex-1 min-w-0 flex items-start gap-3">
                                 <span className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center text-xs font-black text-slate-400 shrink-0">{sq.id}</span>
-                                <div className="text-slate-700 font-medium" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
+                                <div className="html-content text-slate-700 font-medium flex-1 min-w-0" dangerouslySetInnerHTML={{ __html: String(sq.content || '') }} />
                               </div>
                               <div className="flex items-center gap-6 shrink-0 text-sm">
                                 <div className="flex flex-col items-end">
@@ -310,7 +313,7 @@ export const TestResult: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Câu trả lời của bạn</p>
-                          <div className={`text-lg font-bold ${
+                          <div className={`text-lg font-bold break-words ${
                             isCorrect === true ? 'text-emerald-700' : 
                             isCorrect === false ? 'text-rose-700' : 'text-slate-900'
                           }`}>
@@ -323,7 +326,7 @@ export const TestResult: React.FC = () => {
                         {(isCorrect === false || isCorrect === true || isAIGraded) && q.correctAnswer && (
                           <div className="p-6 rounded-2xl bg-emerald-50/30 border border-emerald-100 shadow-sm">
                             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">Đáp án / Hướng dẫn</p>
-                            <div className="text-lg font-bold text-emerald-700">
+                            <div className="text-lg font-bold text-emerald-700 break-words">
                               {q.correctAnswer}
                             </div>
                           </div>
