@@ -19,8 +19,9 @@ export const StudentTests: React.FC = () => {
       setLoading(true);
 
       try {
+        // Background sync to keep fresh data without blocking UI
         if (dataProvider.syncWithGAS) {
-          await dataProvider.syncWithGAS();
+          dataProvider.syncWithGAS().catch(console.error);
         }
         
         const [allTests, allSubmissions, allClasses] = await Promise.all([
