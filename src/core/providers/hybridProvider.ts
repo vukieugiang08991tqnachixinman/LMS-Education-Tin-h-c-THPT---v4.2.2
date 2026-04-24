@@ -4,33 +4,54 @@ import LZString from 'lz-string';
 
 const STORAGE_KEY = 'lms_data';
 
+let cachedStorageString: string | null = null;
+let cachedParsedString: string | null = null;
+
 const getData = () => {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    // First check if it's plain JSON (starts with { or [)
-    if (stored.startsWith('{') || stored.startsWith('[')) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Failed to parse uncompressed stored data:', e);
-      }
+  if (!stored) return null;
+
+  if (stored === cachedStorageString && cachedParsedString) {
+    try {
+      return JSON.parse(cachedParsedString);
+    } catch (e) {
+      console.error("Cache parse error", e);
     }
-    
+  }
+
+  let finalJsonString: string | null = null;
+  let finalParsed: any = null;
+
+  // First check if it's plain JSON (starts with { or [)
+  if (stored.startsWith('{') || stored.startsWith('[')) {
+    finalJsonString = stored;
+    try {
+      finalParsed = JSON.parse(stored);
+    } catch (e) {
+      console.error('Failed to parse uncompressed stored data:', e);
+    }
+  } else {
     try {
       // Try to decompress UTF16 first (the correct way)
-      const decompressed = LZString.decompressFromUTF16(stored);
-      if (decompressed) {
-        return JSON.parse(decompressed);
-      }
+      finalJsonString = LZString.decompressFromUTF16(stored);
       // Fallback to standard decompress in case it was saved with the old method
-      const oldDecompressed = LZString.decompress(stored);
-      if (oldDecompressed) {
-        return JSON.parse(oldDecompressed);
+      if (!finalJsonString) {
+        finalJsonString = LZString.decompress(stored);
+      }
+      if (finalJsonString) {
+        finalParsed = JSON.parse(finalJsonString);
       }
     } catch (e) {
       console.error('Failed to decompress stored data:', e);
     }
   }
+
+  if (finalJsonString && finalParsed) {
+    cachedStorageString = stored;
+    cachedParsedString = finalJsonString;
+    return finalParsed; // Return parsed object
+  }
+
   return null;
 };
 
@@ -39,10 +60,12 @@ const saveData = (data: any) => {
     const jsonString = JSON.stringify(data);
     const compressed = LZString.compressToUTF16(jsonString);
     localStorage.setItem(STORAGE_KEY, compressed);
+    
+    // Update cache
+    cachedStorageString = compressed;
+    cachedParsedString = jsonString;
   } catch (e) {
     console.error('Storage quota exceeded or failed to save:', e);
-    // If compression still fails, try to save without compression as a last resort (unlikely to help if quota is reached)
-    // Or just alert the user
     if (e instanceof Error && e.name === 'QuotaExceededError') {
       alert('Dung lượng lưu trữ trình duyệt đã đầy. Vui lòng xóa bớt bài giảng hoặc bài nộp có dung lượng lớn.');
     }
