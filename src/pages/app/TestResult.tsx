@@ -47,11 +47,32 @@ export const TestResult: React.FC = () => {
         
         setTest(testData);
         if (submissions.length > 0) {
-          setSubmission(submissions[0]);
+          const sub = submissions[0];
+          setSubmission(sub);
           try {
-            setAnswers(typeof submissions[0].content === 'string' ? JSON.parse(submissions[0].content) : submissions[0].content);
+            let parsedAnswers: any = {};
+            if (sub.answers) {
+              parsedAnswers = sub.answers;
+              let depth = 0;
+              while (typeof parsedAnswers === 'string' && depth < 3) {
+                try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { break; }
+                depth++;
+              }
+            } else if (sub.content) {
+              const trimmed = typeof sub.content === 'string' ? sub.content.trim() : '';
+              if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                parsedAnswers = trimmed;
+                let depth = 0;
+                while (typeof parsedAnswers === 'string' && depth < 3) {
+                  try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { break; }
+                  depth++;
+                }
+              } else if (typeof sub.content !== 'string') {
+                parsedAnswers = sub.content;
+              }
+            }
+            setAnswers(parsedAnswers);
           } catch (e) {
-            console.error("Error parsing submission content:", e);
             setAnswers({});
           }
         }
@@ -92,17 +113,23 @@ export const TestResult: React.FC = () => {
   const isFullyGraded = !test.questions.some(q => q.type === 'essay' || q.type === 'short_answer');
   const score = submission.score !== undefined ? submission.score : 0;
   
+  const maxScore = test?.questions ? test.questions.reduce((sum, q) => sum + (q.points || 0), 0) : 10;
+  const validMaxScore = maxScore > 0 ? maxScore : 10;
+  const accuracy = Math.round((score / validMaxScore) * 100);
+
   const getScoreColor = (s: number) => {
-    if (s >= 8) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-    if (s >= 5) return 'text-amber-600 bg-amber-50 border-amber-100';
+    const sRatio = s / validMaxScore;
+    if (sRatio >= 0.8) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
+    if (sRatio >= 0.5) return 'text-amber-600 bg-amber-50 border-amber-100';
     return 'text-rose-600 bg-rose-50 border-rose-100';
   };
 
   const getScoreMessage = (s: number) => {
-    if (s >= 9) return 'Xuất sắc! Bạn đã hoàn thành rất tốt.';
-    if (s >= 8) return 'Giỏi lắm! Tiếp tục phát huy nhé.';
-    if (s >= 6.5) return 'Khá tốt! Bạn có thể làm tốt hơn nữa.';
-    if (s >= 5) return 'Đạt yêu cầu. Cần cố gắng thêm nhé.';
+    const sRatio = s / validMaxScore;
+    if (sRatio >= 0.9) return 'Xuất sắc! Bạn đã hoàn thành rất tốt.';
+    if (sRatio >= 0.8) return 'Giỏi lắm! Tiếp tục phát huy nhé.';
+    if (sRatio >= 0.65) return 'Khá tốt! Bạn có thể làm tốt hơn nữa.';
+    if (sRatio >= 0.5) return 'Đạt yêu cầu. Cần cố gắng thêm nhé.';
     return 'Chưa đạt. Hãy ôn tập kỹ hơn cho lần sau.';
   };
 
@@ -146,7 +173,7 @@ export const TestResult: React.FC = () => {
                   <span className={`text-7xl font-black ${score >= 5 ? 'text-indigo-600' : 'text-rose-500'}`}>
                     {submission.score !== undefined ? submission.score : '?'}
                   </span>
-                  <span className="text-2xl font-bold text-slate-300">/ 10</span>
+                  <span className="text-2xl font-bold text-slate-300">/ {validMaxScore}</span>
                 </div>
                 {!isFullyGraded && submission.score === undefined && (
                   <div className="mt-4 px-4 py-2 rounded-xl bg-amber-50 text-amber-600 text-xs font-bold flex items-center justify-center gap-2">
@@ -159,7 +186,7 @@ export const TestResult: React.FC = () => {
                 <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 text-left border border-white/10">
                   <Target className="text-indigo-200 mb-3" size={24} />
                   <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">Độ chính xác</p>
-                  <p className="text-2xl font-black">{Math.round((score / 10) * 100)}%</p>
+                  <p className="text-2xl font-black">{accuracy}%</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 text-left border border-white/10">
                   <Calendar className="text-indigo-200 mb-3" size={24} />

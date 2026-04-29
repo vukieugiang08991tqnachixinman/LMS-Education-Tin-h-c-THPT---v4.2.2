@@ -121,6 +121,7 @@ export function mapToBackend(resource: string, record: any) {
     'bank_questions': ['options', 'subQuestions'],
     'tests': ['questions', 'assignedTo'],
     'progresses': ['quizScores', 'essayAnswers', 'teacherFeedback'],
+    'submissions': ['answers', 'feedback'],
     'reports': ['data']
   };
 
@@ -225,13 +226,15 @@ export const gasProvider: DataProvider = {
       id: (submission as any).id || Math.random().toString(36).substr(2, 9),
       submittedAt: new Date().toISOString()
     };
-    await callGAS('upsert_record', { table: 'submissions', record: newSubmission });
+    const record = mapToBackend('submissions', newSubmission);
+    await callGAS('upsert_record', { table: 'submissions', record });
     return newSubmission;
   },
   gradeSubmission: async (submissionId, score, feedback) => {
     const submission = await gasProvider.getOne<Submission>('submissions', submissionId);
     const updated = { ...submission, score, feedback };
-    await callGAS('upsert_record', { table: 'submissions', record: updated });
+    const record = mapToBackend('submissions', updated);
+    await callGAS('upsert_record', { table: 'submissions', record });
     return updated;
   },
   getStudentReport: async (studentId) => {

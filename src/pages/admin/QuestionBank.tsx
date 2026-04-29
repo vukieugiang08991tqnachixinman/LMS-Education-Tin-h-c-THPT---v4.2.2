@@ -37,7 +37,7 @@ export const QuestionBank: React.FC = () => {
     content: '',
     options: ['', '', '', ''],
     correctAnswer: '',
-    points: 1,
+    points: 0.25,
     subjectId: '',
     topicId: ''
   });
@@ -111,7 +111,7 @@ export const QuestionBank: React.FC = () => {
         content: '',
         options: ['', '', '', ''],
         correctAnswer: '',
-        points: 1,
+        points: 0.25,
         subjectId: filterSubject || (subjects.length > 0 ? subjects[0].id : ''),
         topicId: filterTopic || ''
       });
@@ -208,7 +208,7 @@ export const QuestionBank: React.FC = () => {
         "type": "multiple_choice" | "true_false" | "short_answer" | "essay",
         "difficulty": "recognition" | "understanding" | "application",
         "content": "Nội dung câu hỏi",
-        "points": 1,
+        "points": 0.25,
         "options": ["Lựa chọn 1", "Lựa chọn 2", "Lựa chọn 3", "Lựa chọn 4"], // Chỉ dành cho multiple_choice
         "correctAnswer": "Nội dung chính xác của đáp án đúng (không phải A, B, C, D)", // Dành cho multiple_choice, short_answer, essay (hướng dẫn chấm)
         "subQuestions": [ // Chỉ dành cho true_false
@@ -431,7 +431,7 @@ export const QuestionBank: React.FC = () => {
               subjectId: excelImportConfig.subjectId,
               topicId: excelImportConfig.topicId,
               createdAt: new Date().toISOString(),
-              points: 1
+              points: 0.25
             };
           });
 

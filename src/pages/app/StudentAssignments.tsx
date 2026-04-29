@@ -28,6 +28,7 @@ export const StudentAssignments = () => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitFile, setSubmitFile] = useState<File | null>(null);
   const [submitFileBase64, setSubmitFileBase64] = useState<string | null>(null);
+  const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -468,17 +469,63 @@ export const StudentAssignments = () => {
                         </span>
                       </div>
                     </div>
-                    
                     {isSubmitted ? (
                       <div className="space-y-3">
                         <div className="flex items-center justify-center gap-2 w-full py-4 bg-emerald-50 text-emerald-700 rounded-2xl font-bold text-sm shadow-sm">
                           <CheckCircle size={18} /> Đã hoàn thành
                         </div>
+
+                        <button
+                          onClick={() => {
+                            setSelectedAssignment(assignment);
+                            setCurrentSubmission(submission);
+                            // Populate with existing answers
+                            try {
+                              let parsedAnswers: any = {};
+                              if (submission.answers) {
+                                parsedAnswers = submission.answers;
+                                let depth = 0;
+                                while (typeof parsedAnswers === 'string' && depth < 3) {
+                                  try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { break; }
+                                  depth++;
+                                }
+                              } else if (submission.content) {
+                                const trimmed = typeof submission.content === 'string' ? submission.content.trim() : '';
+                                if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                                  parsedAnswers = trimmed;
+                                  let depth = 0;
+                                  while (typeof parsedAnswers === 'string' && depth < 3) {
+                                    try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { break; }
+                                    depth++;
+                                  }
+                                } else if (typeof submission.content !== 'string') {
+                                  parsedAnswers = submission.content;
+                                }
+                              }
+                              setAnswers(parsedAnswers);
+                            } catch (e) {
+                              setAnswers({});
+                            }
+                            setPart1Content(submission.part1Content || '');
+                            setPart2Content(submission.part2Content || '');
+                            setPart3Content(submission.part3Content || '');
+                            setPart4Content(submission.part4Content || '');
+                          }}
+                          className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-xs hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Inbox size={14} /> Xem lại bài làm
+                        </button>
+
                         {submission?.score !== undefined && submission?.score !== null && (
                           <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm font-bold text-indigo-900">Điểm số:</span>
-                              <span className="text-lg font-black text-indigo-600">{submission.score}/10</span>
+                              <span className="text-lg font-black text-indigo-600">
+                                {submission.score}/
+                                {assignment.questions && assignment.questions.length > 0
+                                  ? assignment.questions.reduce((sum, q) => sum + (q.points || 0), 0)
+                                  : 10}
+                              </span>
                             </div>
                             {submission.feedback && (
                               <div className="text-sm text-indigo-700 mt-2 pt-2 border-t border-indigo-100/50">
@@ -516,6 +563,7 @@ export const StudentAssignments = () => {
         isOpen={!!selectedAssignment}
         onClose={() => {
           setSelectedAssignment(null);
+          setCurrentSubmission(null);
           setPart1Content('');
           setPart2Content('');
           setPart3Content('');
@@ -609,186 +657,207 @@ export const StudentAssignments = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-            {selectedAssignment?.questions && selectedAssignment.questions.length > 0 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Danh sách câu hỏi</h3>
-                {ensureArray(selectedAssignment.questions).map((q, idx) => (
-                  <div key={`${q.id || 'q'}-${idx}`} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 space-y-4">
-                        <div>
-                          <div 
-                            className="html-content text-lg font-medium text-slate-800 leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
-                              {q.type === 'multiple_choice' ? 'Trắc nghiệm' : 
-                               q.type === 'true_false' ? 'Đúng/Sai' : 
-                               q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
-                            </span>
-                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">
-                              {q.type === 'true_false' ? 1 : q.points} điểm
-                            </span>
+            {(() => {
+              const isReadOnly = !!currentSubmission;
+              
+              return (
+                <>
+                  {selectedAssignment?.questions && selectedAssignment.questions.length > 0 && (
+                    <div className="space-y-6">
+                      <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Danh sách câu hỏi</h3>
+                      {ensureArray(selectedAssignment.questions).map((q, idx) => (
+                        <div key={`${q.id || 'q'}-${idx}`} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
+                              {idx + 1}
+                            </div>
+                            <div className="flex-1 space-y-4">
+                              <div>
+                                <div 
+                                  className="html-content text-lg font-medium text-slate-800 leading-relaxed"
+                                  dangerouslySetInnerHTML={{ __html: String(q.content || '') }}
+                                />
+                                <div className="flex gap-2 mt-2">
+                                  <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
+                                    {q.type === 'multiple_choice' ? 'Trắc nghiệm' : 
+                                     q.type === 'true_false' ? 'Đúng/Sai' : 
+                                     q.type === 'short_answer' ? 'Trả lời ngắn' : 'Tự luận'}
+                                  </span>
+                                  <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">
+                                    {q.type === 'true_false' ? 1 : q.points} điểm
+                                  </span>
+                                </div>
+                              </div>
+
+                              {q.type === 'multiple_choice' && ensureArray(q.options).map((opt: string, i: number) => {
+                                return (
+                                <label 
+                                  key={i} 
+                                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                                    answers[q.id] === opt 
+                                      ? 'border-indigo-600 bg-indigo-50/50' 
+                                      : 'border-slate-100 hover:border-indigo-200'
+                                  } ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
+                                >
+                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                    answers[q.id] === opt ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
+                                  }`}>
+                                    {answers[q.id] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                                  </div>
+                                  <input 
+                                    type="radio" 
+                                    name={`question-${q.id}`}
+                                    value={opt}
+                                    checked={answers[q.id] === opt}
+                                    onChange={() => !isReadOnly && handleAnswerChange(q.id, opt)}
+                                    disabled={isReadOnly}
+                                    className="hidden"
+                                  />
+                                  <span className={`text-base ${answers[q.id] === opt ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
+                                    {opt}
+                                  </span>
+                                </label>
+                              );
+                              })}
+
+                              {q.type === 'true_false' && ensureArray(q.subQuestions).map((sq: any, i: number) => {
+                                return (
+                                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
+                                  <div className="flex gap-3 flex-1 min-w-0">
+                                    <span className="font-bold text-slate-400 shrink-0">{String.fromCharCode(97 + i)})</span>
+                                    <div 
+                                      className="html-content text-slate-700 font-medium flex-1 min-w-0"
+                                      dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => !isReadOnly && handleAnswerChange(q.id, true, sq.id)}
+                                      disabled={isReadOnly}
+                                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 ${
+                                        answers[q.id]?.[sq.id] === true
+                                          ? 'bg-indigo-600 text-white border-indigo-600'
+                                          : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
+                                      } ${isReadOnly ? 'cursor-default' : ''}`}
+                                    >
+                                      Đúng
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => !isReadOnly && handleAnswerChange(q.id, false, sq.id)}
+                                      disabled={isReadOnly}
+                                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 ${
+                                        answers[q.id]?.[sq.id] === false
+                                          ? 'bg-indigo-600 text-white border-indigo-600'
+                                          : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
+                                      } ${isReadOnly ? 'cursor-default' : ''}`}
+                                    >
+                                      Sai
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                              })}
+
+                              {q.type === 'short_answer' && (
+                                <input 
+                                  type="text"
+                                  value={answers[q.id] || ''}
+                                  onChange={(e) => !isReadOnly && handleAnswerChange(q.id, e.target.value)}
+                                  readOnly={isReadOnly}
+                                  placeholder="Nhập câu trả lời của bạn..."
+                                  className={`w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                                />
+                              )}
+
+                              {q.type === 'essay' && (
+                                <textarea 
+                                  value={answers[q.id] || ''}
+                                  onChange={(e) => !isReadOnly && handleAnswerChange(q.id, e.target.value)}
+                                  readOnly={isReadOnly}
+                                  placeholder="Trình bày chi tiết bài làm của bạn..."
+                                  rows={6}
+                                  className={`w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                                />
+                              )}
+                            </div>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
 
-                        {q.type === 'multiple_choice' && ensureArray(q.options).map((opt: string, i: number) => (
-                          <label 
-                            key={i} 
-                            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                              answers[q.id] === opt 
-                                ? 'border-indigo-600 bg-indigo-50/50' 
-                                : 'border-slate-100 hover:border-indigo-200'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                              answers[q.id] === opt ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
-                            }`}>
-                              {answers[q.id] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
-                            </div>
-                            <input 
-                              type="radio" 
-                              name={`question-${q.id}`}
-                              value={opt}
-                              checked={answers[q.id] === opt}
-                              onChange={() => handleAnswerChange(q.id, opt)}
-                              className="hidden"
-                            />
-                            <span className={`text-base ${answers[q.id] === opt ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
-                              {opt}
-                            </span>
-                          </label>
-                        ))}
+                  {(selectedAssignment.part1 || selectedAssignment.part2 || selectedAssignment.part3 || selectedAssignment.part4) && (
+                    <div className="space-y-6 pt-6 border-t">
+                      <h3 className="text-lg font-bold text-gray-900">Nội dung văn bản</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">1</span>
+                        Trắc nghiệm nhiều lựa chọn
+                      </label>
+                      <textarea
+                        value={part1Content}
+                        onChange={(e) => !isReadOnly && setPart1Content(e.target.value)}
+                        readOnly={isReadOnly}
+                        rows={3}
+                        className={`w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                        placeholder="Ví dụ: 1A, 2B, 3C..."
+                      />
+                    </div>
 
-                        {q.type === 'true_false' && ensureArray(q.subQuestions).map((sq: any, i: number) => (
-                          <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50/50">
-                            <div className="flex gap-3 flex-1 min-w-0">
-                              <span className="font-bold text-slate-400 shrink-0">{String.fromCharCode(97 + i)})</span>
-                              <div 
-                                className="html-content text-slate-700 font-medium flex-1 min-w-0"
-                                dangerouslySetInnerHTML={{ __html: String(sq.content || '') }}
-                              />
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleAnswerChange(q.id, true, sq.id)}
-                                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 ${
-                                  answers[q.id]?.[sq.id] === true
-                                    ? 'bg-indigo-600 text-white border-indigo-600'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
-                                }`}
-                              >
-                                Đúng
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleAnswerChange(q.id, false, sq.id)}
-                                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 ${
-                                  answers[q.id]?.[sq.id] === false
-                                    ? 'bg-indigo-600 text-white border-indigo-600'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
-                                }`}
-                              >
-                                Sai
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-
-                        {q.type === 'short_answer' && (
-                          <input 
-                            type="text"
-                            value={answers[q.id] || ''}
-                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                            placeholder="Nhập câu trả lời của bạn..."
-                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                          />
-                        )}
-
-                        {q.type === 'essay' && (
-                          <textarea 
-                            value={answers[q.id] || ''}
-                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                            placeholder="Trình bày chi tiết bài làm của bạn..."
-                            rows={6}
-                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all"
-                          />
-                        )}
-                      </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">2</span>
+                        Trắc nghiệm Đúng/Sai
+                      </label>
+                      <textarea
+                        value={part2Content}
+                        onChange={(e) => !isReadOnly && setPart2Content(e.target.value)}
+                        readOnly={isReadOnly}
+                        rows={3}
+                        className={`w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                        placeholder="Ví dụ: 1a Đ, 1b S..."
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
 
-            {(selectedAssignment.part1 || selectedAssignment.part2 || selectedAssignment.part3 || selectedAssignment.part4) && (
-              <div className="space-y-6 pt-6 border-t">
-                <h3 className="text-lg font-bold text-gray-900">Nội dung văn bản</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">1</span>
-                  Trắc nghiệm nhiều lựa chọn
-                </label>
-                <textarea
-                  value={part1Content}
-                  onChange={(e) => setPart1Content(e.target.value)}
-                  rows={3}
-                  className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm"
-                  placeholder="Ví dụ: 1A, 2B, 3C..."
-                />
-              </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">3</span>
+                      Trả lời ngắn
+                    </label>
+                    <textarea
+                      value={part3Content}
+                      onChange={(e) => !isReadOnly && setPart3Content(e.target.value)}
+                      readOnly={isReadOnly}
+                      rows={3}
+                      className={`w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm ${isReadOnly ? 'cursor-default opacity-80' : ''}`}
+                      placeholder="Nhập câu trả lời ngắn của bạn..."
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">2</span>
-                  Trắc nghiệm Đúng/Sai
-                </label>
-                <textarea
-                  value={part2Content}
-                  onChange={(e) => setPart2Content(e.target.value)}
-                  rows={3}
-                  className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm"
-                  placeholder="Ví dụ: 1a Đ, 1b S..."
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">3</span>
-                Trả lời ngắn
-              </label>
-              <textarea
-                value={part3Content}
-                onChange={(e) => setPart3Content(e.target.value)}
-                rows={3}
-                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all text-sm"
-                placeholder="Nhập câu trả lời ngắn của bạn..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">4</span>
-                Tự luận
-              </label>
-              <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 focus-within:border-indigo-500 transition-all">
-                <QuillEditor
-                  value={part4Content}
-                  onChange={setPart4Content}
-                  className="h-64 pb-12"
-                  placeholder="Trình bày chi tiết bài làm của bạn tại đây..."
-                />
-              </div>
-            </div>
-            </div>
-            )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">4</span>
+                      Tự luận
+                    </label>
+                    <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 focus-within:border-indigo-500 transition-all">
+                      <QuillEditor
+                        value={part4Content}
+                        onChange={(val) => !isReadOnly && setPart4Content(val)}
+                        readOnly={isReadOnly}
+                        className="h-64 pb-12"
+                        placeholder="Trình bày chi tiết bài làm của bạn tại đây..."
+                      />
+                    </div>
+                  </div>
+                </div>
+                )}
+              </>
+            );
+          })()}
 
             <div className="p-6 bg-indigo-50 rounded-[2rem] border-2 border-dashed border-indigo-200">
               <label className="block text-sm font-bold text-indigo-900 mb-4">
@@ -817,28 +886,42 @@ export const StudentAssignments = () => {
             <div className="flex justify-end gap-4 pt-8 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setSelectedAssignment(null)}
+                onClick={() => {
+                  setSelectedAssignment(null);
+                  setPart1Content('');
+                  setPart2Content('');
+                  setPart3Content('');
+                  setPart4Content('');
+                  setAnswers({});
+                }}
                 className="px-8 py-4 text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all font-bold"
               >
-                Hủy bỏ
+                Đóng
               </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || !selectedAssignment || (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64 && Object.keys(answers).length === 0)}
-                className="px-10 py-4 text-white bg-indigo-600 rounded-2xl hover:bg-indigo-700 transition-all font-bold disabled:opacity-50 shadow-lg shadow-indigo-100 flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Đang xử lý...
-                  </>
-                ) : (
-                  <>
-                    Nộp bài ngay
-                    <ArrowRight size={20} />
-                  </>
-                )}
-              </button>
+              {(() => {
+                const submission = submissions.find(s => s.assignmentId === selectedAssignment.id);
+                if (submission) return null;
+                
+                return (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !selectedAssignment || (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64 && Object.keys(answers).length === 0)}
+                    className="px-10 py-4 text-white bg-indigo-600 rounded-2xl hover:bg-indigo-700 transition-all font-bold disabled:opacity-50 shadow-lg shadow-indigo-100 flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        Nộp bài ngay
+                        <ArrowRight size={20} />
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </form>
           </>

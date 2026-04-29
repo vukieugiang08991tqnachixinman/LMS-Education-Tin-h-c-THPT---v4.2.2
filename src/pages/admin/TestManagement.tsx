@@ -58,7 +58,7 @@ export const TestManagement: React.FC = () => {
     content: '',
     options: ['', '', '', ''],
     correctAnswer: '',
-    points: 1
+    points: 0.25
   });
 
   // Question Bank state
@@ -235,7 +235,7 @@ export const TestManagement: React.FC = () => {
       const generatedQuestions: Question[] = parseTruncatedJSON(response.text).map((q: any) => ({
         ...q,
         id: Math.random().toString(36).substr(2, 9),
-        points: q.type === 'true_false' ? 1 : (q.points || 1)
+        points: q.type === 'multiple_choice' ? 0.25 : (q.type === 'true_false' ? 1 : (q.points || 1))
       }));
 
       setFormData(prev => ({
@@ -387,7 +387,7 @@ export const TestManagement: React.FC = () => {
               correctAnswer,
               subQuestions,
               explanation,
-              points: type === 'true_false' ? 1 : 1
+              points: type === 'true_false' ? 1 : 0.25
             };
           });
 
@@ -471,7 +471,7 @@ export const TestManagement: React.FC = () => {
           { id: 'c', content: '', difficulty: 'recognition', correctAnswer: true },
           { id: 'd', content: '', difficulty: 'recognition', correctAnswer: true }
         ],
-        points: 1
+        points: 0.25
       });
     }
     setIsQuestionModalOpen(true);
@@ -1457,7 +1457,10 @@ export const TestManagement: React.FC = () => {
                 onClick={() => {
                   const selectedQs = bankQuestions.filter(q => selectedBankQuestions.includes(q.id)).map(q => {
                     const { subjectId, topicId, createdAt, ...rest } = q;
-                    return rest as Question;
+                    return {
+                      ...rest,
+                      points: rest.type === 'multiple_choice' ? 0.25 : (rest.type === 'true_false' ? 1 : (rest.points || 1))
+                    } as Question;
                   });
                   setFormData({
                     ...formData,

@@ -350,13 +350,14 @@ export const TakeTest: React.FC = () => {
       }
     }
 
-    const finalScore = maxScore > 0 ? Number(((totalScore / maxScore) * 10).toFixed(2)) : 0;
+    const finalScore = Number(totalScore.toFixed(2));
 
     try {
       await dataProvider.submitAssignment({
         testId: test.id,
         studentId: currentUser.id,
         content: JSON.stringify(answers),
+        answers: JSON.stringify(answers), // Add this duplicate for compatibility
         score: finalScore,
         feedback: JSON.stringify({
           violations,
@@ -368,8 +369,8 @@ export const TakeTest: React.FC = () => {
       const xpAmount = 100 + Math.round(finalScore * 10);
       await dataProvider.awardXP(currentUser.id, xpAmount);
       
-      // Award "Thiên tài" badge if score is 10/10
-      if (finalScore === 10) {
+      // Award "Thiên tài" badge if perfect score
+      if (finalScore >= maxScore && maxScore > 0) {
         await dataProvider.awardBadge(currentUser.id, {
           id: 'genius',
           name: 'Thiên tài',

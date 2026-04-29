@@ -105,7 +105,7 @@ export const AssignmentManagement = () => {
     content: '',
     options: ['', '', '', ''],
     correctAnswer: '',
-    points: 1
+    points: 0.25
   });
 
   useEffect(() => {
@@ -149,7 +149,10 @@ export const AssignmentManagement = () => {
 
     const newQuestions = selectedQs.map(q => {
       const { subjectId, topicId, createdAt, ...rest } = q;
-      return rest as Question;
+      return {
+        ...rest,
+        points: rest.type === 'multiple_choice' ? 0.25 : (rest.type === 'true_false' ? 1 : (rest.points || 1))
+      } as Question;
     });
 
     if (targetFormForQuestionBank === 'lesson') {
@@ -212,7 +215,7 @@ export const AssignmentManagement = () => {
           { id: 'c', content: '', difficulty: 'recognition', correctAnswer: true },
           { id: 'd', content: '', difficulty: 'recognition', correctAnswer: true }
         ] : [],
-        points: 1
+        points: defaultType === 'multiple_choice' ? 0.25 : (defaultType === 'true_false' ? 1 : 1)
       });
     }
     setIsQuestionModalOpen(true);
@@ -506,7 +509,28 @@ export const AssignmentManagement = () => {
     
     let parsedAnswers: Record<string, any> = {};
     try {
-      parsedAnswers = submission.answers ? JSON.parse(submission.answers) : {};
+      if (submission.answers) {
+        let temp: any = submission.answers;
+        let depth = 0;
+        while (typeof temp === 'string' && depth < 3) {
+          try { temp = JSON.parse(temp); } catch (e) { break; }
+          depth++;
+        }
+        parsedAnswers = temp;
+      } else if (submission.content) {
+        const trimmed = typeof submission.content === 'string' ? submission.content.trim() : '';
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          let temp: any = trimmed;
+          let depth = 0;
+          while (typeof temp === 'string' && depth < 3) {
+            try { temp = JSON.parse(temp); } catch (e) { break; }
+            depth++;
+          }
+          parsedAnswers = temp;
+        } else if (typeof submission.content !== 'string') {
+          parsedAnswers = submission.content;
+        }
+      }
     } catch (e) {
       console.error("Error parsing answers:", e);
       return;
@@ -542,12 +566,12 @@ export const AssignmentManagement = () => {
       }
     });
 
-    const finalScore = Number(((totalScore / maxScore) * 10).toFixed(2));
+    const finalScore = Number(totalScore.toFixed(2));
     
     setEditingSubmissionId(submission.id);
     setGradingData({ 
       score: finalScore.toString(), 
-      feedback: `[Chấm tự động] Điểm trắc nghiệm: ${finalScore}/10.\n${submission.feedback || ''}` 
+      feedback: `[Chấm tự động] Điểm trắc nghiệm: ${finalScore}/${maxScore}.\n${submission.feedback || ''}` 
     });
   };
 
@@ -1510,17 +1534,38 @@ export const AssignmentManagement = () => {
                               </div>
                               
                               <div className="space-y-4 mb-4">
-                                {submission.answers && assignment.questions && assignment.questions.length > 0 && (
+                                {(submission.answers || submission.content) && assignment.questions && assignment.questions.length > 0 && (
                                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                     <p className="text-[10px] font-bold text-indigo-600 uppercase mb-2">Phần Trắc nghiệm (Tự động chấm)</p>
                                     <div className="space-y-3">
                                       {assignment.questions.map((q, idx) => {
                                         let parsedAnswers: Record<string, any> = {};
                                         try {
-                                          parsedAnswers = JSON.parse(submission.answers || '{}');
+                                          if (submission.answers) {
+                                            let temp: any = submission.answers;
+                                            let depth = 0;
+                                            while (typeof temp === 'string' && depth < 3) {
+                                              try { temp = JSON.parse(temp); } catch (e) { break; }
+                                              depth++;
+                                            }
+                                            parsedAnswers = temp;
+                                          } else if (submission.content) {
+                                            const trimmed = typeof submission.content === 'string' ? submission.content.trim() : '';
+                                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                                              let temp: any = trimmed;
+                                              let depth = 0;
+                                              while (typeof temp === 'string' && depth < 3) {
+                                                try { temp = JSON.parse(temp); } catch (e) { break; }
+                                                depth++;
+                                              }
+                                              parsedAnswers = temp;
+                                            } else if (typeof submission.content !== 'string') {
+                                              parsedAnswers = submission.content;
+                                            }
+                                          }
                                         } catch (e) {}
                                         
-                                        const studentAns = parsedAnswers[q.id];
+                                        const studentAns = parsedAnswers[q.id] !== undefined ? parsedAnswers[q.id] : undefined;
                                         
                                         return (
                                           <div key={idx} className="text-sm">
@@ -1532,7 +1577,7 @@ export const AssignmentManagement = () => {
                                               <div className="mt-1 flex items-center gap-2">
                                                 <span className="text-gray-600">Học sinh chọn:</span>
                                                 <span className={`font-medium ${studentAns === q.correctAnswer ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                  {studentAns || 'Chưa trả lời'}
+                                                  {studentAns !== undefined ? studentAns : 'Chưa trả lời'}
                                                 </span>
                                                 <span className="text-gray-400 text-xs">(Đáp án: {q.correctAnswer})</span>
                                               </div>
@@ -1557,9 +1602,17 @@ export const AssignmentManagement = () => {
                                               <div className="mt-1 flex items-center gap-2">
                                                 <span className="text-gray-600">Học sinh chọn:</span>
                                                 <span className={`font-medium ${studentAns?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase() ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                  {studentAns || 'Chưa trả lời'}
+                                                  {studentAns !== undefined ? studentAns : 'Chưa trả lời'}
                                                 </span>
                                                 <span className="text-gray-400 text-xs">(Đáp án: {q.correctAnswer})</span>
+                                              </div>
+                                            )}
+                                            {q.type === 'essay' && (
+                                              <div className="mt-1">
+                                                <span className="text-gray-600">Học sinh chọn:</span>
+                                                <div className="mt-1 bg-white p-3 rounded-lg border text-gray-800 whitespace-pre-wrap">
+                                                  {studentAns !== undefined && studentAns !== '' ? studentAns : <span className="italic text-gray-400">Chưa trả lời</span>}
+                                                </div>
                                               </div>
                                             )}
                                           </div>

@@ -35,13 +35,30 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 
   useEffect(() => {
     if (submission) {
-      let parsedAnswers = {};
+      let parsedAnswers: any = {};
       try {
-        parsedAnswers = submission.content 
-          ? (typeof submission.content === 'string' ? JSON.parse(submission.content) : submission.content) 
-          : {};
+        if (submission.answers) {
+          parsedAnswers = submission.answers;
+          let depth = 0;
+          while (typeof parsedAnswers === 'string' && depth < 3) {
+            try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { break; }
+            depth++;
+          }
+        } else if (submission.content) {
+          const trimmed = typeof submission.content === 'string' ? submission.content.trim() : '';
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            parsedAnswers = trimmed;
+            let depth = 0;
+            while (typeof parsedAnswers === 'string' && depth < 3) {
+              try { parsedAnswers = JSON.parse(parsedAnswers); } catch (e) { break; }
+              depth++;
+            }
+          } else if (typeof submission.content !== 'string') {
+            parsedAnswers = submission.content;
+          }
+        }
       } catch (e) {
-        console.error("Error parsing submission content:", e);
+        // Fallback
       }
       setAnswers(parsedAnswers);
       
@@ -212,7 +229,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
         }
       });
       
-      const finalScore = maxScore > 0 ? Number(((totalScore / maxScore) * 10).toFixed(2)) : 0;
+      const finalScore = Number(totalScore.toFixed(2));
       
       const payload: Partial<Submission> = {
         score: finalScore,
@@ -243,7 +260,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 
   const totalCurrentScore = test.questions.reduce((sum, q) => sum + (scores[q.id] || 0), 0);
   const maxTotalScore = test.questions.reduce((sum, q) => sum + q.points, 0);
-  const finalScore10 = maxTotalScore > 0 ? Number(((totalCurrentScore / maxTotalScore) * 10).toFixed(2)) : 0;
+  const currentScoreDisplay = Number(totalCurrentScore.toFixed(2));
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết bài làm - ${submission.student?.name || 'Học sinh'}`} size="7xl">
@@ -257,7 +274,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Điểm số</p>
-              <p className="text-3xl font-black text-indigo-600">{finalScore10} <span className="text-lg text-gray-400">/ 10</span></p>
+              <p className="text-3xl font-black text-indigo-600">{currentScoreDisplay} <span className="text-lg text-gray-400">/ {maxTotalScore > 0 ? maxTotalScore : 10}</span></p>
             </div>
             <button
               onClick={handleAIGrade}
