@@ -47,50 +47,84 @@ export async function callGAS(action: string, payload: any = {}) {
         if (Array.isArray(finalData[tableName])) {
           finalData[tableName] = finalData[tableName].map((item: any) => {
             const newItem = { ...item };
+            
+            // Unpack submission content wrapper
+            if (tableName === 'submissions' && item.content) {
+              let parsed: any = null;
+              if (typeof item.content === 'object' && item.content !== null && item.content._wrapped) {
+                parsed = item.content;
+              } else if (typeof item.content === 'string' && item.content.includes('_wrapped')) {
+                try {
+                  parsed = JSON.parse(item.content);
+                } catch (e) {}
+              }
+              
+              if (parsed && parsed._wrapped) {
+                newItem.content = parsed.originalContent;
+                if (parsed.answers !== undefined) newItem.answers = parsed.answers;
+                if (parsed.score !== undefined) newItem.score = parsed.score;
+                if (parsed.feedback !== undefined) newItem.feedback = parsed.feedback;
+                if (parsed.part1Content !== undefined) newItem.part1Content = parsed.part1Content;
+                if (parsed.part2Content !== undefined) newItem.part2Content = parsed.part2Content;
+                if (parsed.part3Content !== undefined) newItem.part3Content = parsed.part3Content;
+                if (parsed.part4Content !== undefined) newItem.part4Content = parsed.part4Content;
+                if (parsed.fileName !== undefined) newItem.fileName = parsed.fileName;
+                if (parsed.fileUrl !== undefined) newItem.fileUrl = parsed.fileUrl;
+              }
+            }
+
             Object.keys(item).forEach(key => {
               if (key.endsWith('Json')) {
                 const originalKey = key.replace('Json', '');
-                try {
-                  const val = item[key];
-                  if (typeof val === 'string' && val.trim() !== '') {
-                    const parsed = JSON.parse(val);
-                    if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
-                      if (Array.isArray(parsed)) {
-                        newItem[originalKey] = parsed.length > 0 ? String(parsed[0]) : '';
+                
+                // If we already successfully restored this field from the _wrapped content
+                // and it is truthy/meaningful, avoid overwriting it with potentially blank JSON fields
+                const alreadyRestored = newItem[originalKey] !== undefined && newItem[originalKey] !== null && 
+                  (typeof newItem[originalKey] === 'number' || (typeof newItem[originalKey] === 'string' && String(newItem[originalKey]).trim() !== '') || (typeof newItem[originalKey] === 'object' && Object.keys(newItem[originalKey]).length > 0));
+
+                if (!alreadyRestored) {
+                  try {
+                    const val = item[key];
+                    if (typeof val === 'string' && val.trim() !== '') {
+                      const parsed = JSON.parse(val);
+                      if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
+                        if (Array.isArray(parsed)) {
+                          newItem[originalKey] = parsed.length > 0 ? String(parsed[0]) : '';
+                        } else {
+                          newItem[originalKey] = parsed;
+                        }
                       } else {
                         newItem[originalKey] = parsed;
                       }
+                    } else if (typeof val === 'string') {
+                      // Empty string or whitespace, default to array/object/string based on field
+                      if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
+                        newItem[originalKey] = '';
+                      } else {
+                        newItem[originalKey] = tableName === 'users' || tableName === 'lessons' || tableName === 'assignments' || tableName === 'bank_questions' || tableName === 'tests' ? [] : {};
+                      }
                     } else {
-                      newItem[originalKey] = parsed;
-                    }
-                  } else if (typeof val === 'string') {
-                    // Empty string or whitespace, default to array/object/string based on field
-                    if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
-                      newItem[originalKey] = '';
-                    } else {
-                      newItem[originalKey] = tableName === 'users' || tableName === 'lessons' || tableName === 'assignments' || tableName === 'bank_questions' || tableName === 'tests' ? [] : {};
-                    }
-                  } else {
-                    if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
-                      if (Array.isArray(val)) {
-                        newItem[originalKey] = val.length > 0 ? String(val[0]) : '';
+                      if (originalKey === 'correctAnswer' || originalKey === 'explanation') {
+                        if (Array.isArray(val)) {
+                          newItem[originalKey] = val.length > 0 ? String(val[0]) : '';
+                        } else {
+                          newItem[originalKey] = val;
+                        }
                       } else {
                         newItem[originalKey] = val;
                       }
-                    } else {
-                      newItem[originalKey] = val;
                     }
-                  }
-                } catch (e) {
-                  const val = item[key];
-                  if (typeof val === 'string') {
-                    if (val.trim().startsWith('[') || val.trim().startsWith('{')) {
-                      newItem[originalKey] = val.trim().startsWith('[') ? [] : {};
+                  } catch (e) {
+                    const val = item[key];
+                    if (typeof val === 'string') {
+                      if (val.trim().startsWith('[') || val.trim().startsWith('{')) {
+                        newItem[originalKey] = val.trim().startsWith('[') ? [] : {};
+                      } else {
+                        newItem[originalKey] = val; // It's a raw string
+                      }
                     } else {
-                      newItem[originalKey] = val; // It's a raw string
+                      newItem[originalKey] = [];
                     }
-                  } else {
-                    newItem[originalKey] = [];
                   }
                 }
                 delete newItem[key];
@@ -145,6 +179,26 @@ export function mapToBackend(resource: string, record: any) {
       mapped.explanation = record.explanation;
       mapped.explanationJson = JSON.stringify(record.explanation);
     }
+  }
+
+  // Pack all submission fields into content to prevent drops by incomplete GAS scripts
+  // Exclude fileUrl from the wrapper because Base64 encoded files easily exceed the 50,000 character limit of Google Sheets cells
+  if (resource === 'submissions') {
+    // We stringify the payload into 'content' to guarantee it saves in GAS
+    mapped.content = JSON.stringify({
+      _wrapped: true,
+      originalContent: record.content,
+      answers: record.answers,
+      score: record.score,
+      feedback: record.feedback,
+      part1Content: record.part1Content,
+      part2Content: record.part2Content,
+      part3Content: record.part3Content,
+      part4Content: record.part4Content,
+      fileName: record.fileName
+      // fileUrl omitted intentionally
+    });
+    delete mapped.fileUrl;
   }
 
   return mapped;

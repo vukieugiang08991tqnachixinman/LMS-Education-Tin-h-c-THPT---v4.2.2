@@ -1647,7 +1647,14 @@ export const AssignmentManagement = () => {
                                 )}
                                 {!submission.part1Content && !submission.part2Content && !submission.part3Content && !submission.part4Content && (
                                   <div className="bg-gray-50 p-3 rounded-xl text-sm text-gray-700 whitespace-pre-wrap border border-gray-100">
-                                    {submission.content || <span className="italic text-gray-400">Không có nội dung văn bản</span>}
+                                    {(() => {
+                                      const contentValue = submission.content;
+                                      if (!contentValue) return <span className="italic text-gray-400">Không có nội dung văn bản</span>;
+                                      const c = typeof contentValue === 'string' ? contentValue : JSON.stringify(contentValue);
+                                      const emptyCheck = c.replace(/Phần [1-4]: .*?\nKhông có/g, '').trim();
+                                      if (emptyCheck === '' || emptyCheck === '{}' || emptyCheck === '[]') return <span className="italic text-gray-400">Không có nội dung văn bản</span>;
+                                      return typeof contentValue === 'object' ? <div className="font-mono text-xs overflow-auto">{JSON.stringify(contentValue, null, 2)}</div> : c;
+                                    })()}
                                   </div>
                                 )}
                               </div>

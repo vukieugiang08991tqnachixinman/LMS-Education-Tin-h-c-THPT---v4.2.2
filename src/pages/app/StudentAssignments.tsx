@@ -177,7 +177,13 @@ export const StudentAssignments = () => {
     const user = dataProvider.getCurrentUser();
     if (!user) return;
 
-    const combinedContent = `Phần 1: Trắc nghiệm nhiều lựa chọn\n${part1Content || 'Không có'}\n\nPhần 2: Trắc nghiệm Đúng/Sai\n${part2Content || 'Không có'}\n\nPhần 3: Trả lời ngắn\n${part3Content || 'Không có'}\n\nPhần 4: Tự luận\n${part4Content || 'Không có'}`;
+    const parts = [];
+    if (part1Content) parts.push(`Phần 1: Trắc nghiệm nhiều lựa chọn\n${part1Content}`);
+    if (part2Content) parts.push(`Phần 2: Trắc nghiệm Đúng/Sai\n${part2Content}`);
+    if (part3Content) parts.push(`Phần 3: Trả lời ngắn\n${part3Content}`);
+    if (part4Content) parts.push(`Phần 4: Tự luận\n${part4Content}`);
+    
+    const combinedContent = parts.length > 0 ? parts.join('\n\n') : '';
 
     if (!part1Content && !part2Content && !part3Content && !part4Content && !submitFileBase64 && Object.keys(answers).length === 0) {
       toast.error('Vui lòng nhập nội dung, trả lời câu hỏi hoặc đính kèm tệp');
@@ -238,7 +244,7 @@ export const StudentAssignments = () => {
         assignmentId: selectedAssignment.id,
         studentId: user.id,
         content: combinedContent,
-        answers: JSON.stringify(answers),
+        answers: answers,
         part1Content,
         part2Content,
         part3Content,
@@ -521,10 +527,7 @@ export const StudentAssignments = () => {
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm font-bold text-indigo-900">Điểm số:</span>
                               <span className="text-lg font-black text-indigo-600">
-                                {submission.score}/
-                                {assignment.questions && assignment.questions.length > 0
-                                  ? assignment.questions.reduce((sum, q) => sum + (q.points || 0), 0)
-                                  : 10}
+                                {submission.score}/10
                               </span>
                             </div>
                             {submission.feedback && (

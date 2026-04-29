@@ -332,7 +332,7 @@ export const hybridProvider: DataProvider = {
 
       // Background sync to GAS
       import('./gasProvider').then(({ gasProvider }) => {
-        gasProvider.gradeSubmission(submissionId, score, feedback).catch(err => console.warn('[Hybrid] Background gradeSubmission failed:', err));
+        gasProvider.update('submissions', submissionId, updated).catch((err: any) => console.warn('[Hybrid] Background gradeSubmission failed:', err));
       });
     } else {
       throw new Error('Not found');
