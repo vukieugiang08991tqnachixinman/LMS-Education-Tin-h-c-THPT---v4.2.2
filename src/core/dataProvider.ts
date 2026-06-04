@@ -2,7 +2,7 @@ import { User, Class, Subject, Topic, Lesson, Assignment, Test, Submission, Prog
 
 export interface DataProvider {
   // Auth
-  login(username: string, role: 'teacher' | 'student', password?: string): Promise<User | null>;
+  login(username: string, role: 'teacher' | 'student', password?: string, classId?: string): Promise<User | null>;
   getCurrentUser(): User | null;
   logout(): void;
 

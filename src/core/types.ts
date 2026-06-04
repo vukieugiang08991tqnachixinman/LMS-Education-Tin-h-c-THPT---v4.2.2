@@ -140,6 +140,7 @@ export interface Question {
 export interface BankQuestion extends Question {
   subjectId?: string;
   topicId?: string;
+  lessonId?: string;
   createdAt: string;
 }
 

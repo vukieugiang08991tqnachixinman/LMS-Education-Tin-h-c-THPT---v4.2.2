@@ -75,7 +75,7 @@ const saveData = (data: any) => {
 let currentUser: User | null = null;
 
 export const hybridProvider: DataProvider = {
-  login: async (username, role, password) => {
+  login: async (username, role, password, classId) => {
     let data = getData();
     
     // If local data is empty, seed it immediately
@@ -109,11 +109,32 @@ export const hybridProvider: DataProvider = {
     }
 
     if (data && data.users) {
-      const user = data.users.find((u: any) => String(u.username) === String(username) && String(u.role) === String(role) && String(u.password) === String(password));
-      if (user) {
-        currentUser = user;
-        localStorage.setItem('lms_current_user', JSON.stringify(user));
-        return user;
+      // Find all users matching username, role, and password
+      const matchedUsers = data.users.filter((u: any) => String(u.username) === String(username) && String(u.role) === String(role) && String(u.password) === String(password));
+      
+      if (matchedUsers.length > 0) {
+        let user;
+        
+        if (role === 'student') {
+          if (classId) {
+             // If classId is provided, find the specific user for that class
+             user = matchedUsers.find((u: any) => String(u.classId) === String(classId));
+             if (!user) {
+                throw new Error('Tài khoản này không thuộc lớp bạn đã chọn. Vui lòng kiểm tra lại lớp học.');
+             }
+          } else {
+             throw new Error('Vui lòng chọn lớp học.');
+          }
+        } else {
+          // For teachers
+          user = matchedUsers[0];
+        }
+
+        if (user) {
+          currentUser = user;
+          localStorage.setItem('lms_current_user', JSON.stringify(user));
+          return user;
+        }
       }
     }
     
@@ -354,9 +375,9 @@ export const hybridProvider: DataProvider = {
         saveData(allData);
         console.log('[Hybrid] Synced with GAS successfully');
       }
-    } catch (error) {
-      console.warn('[Hybrid] Sync with GAS failed, using local data:', error);
-      throw error;
+    } catch (error: any) {
+      console.warn('[Hybrid] Sync with GAS failed, using local data:', error.message);
+      // Do not throw to prevent cascading UI errors when GAS is unconfigured or 404
     }
   },
   testConnection: async () => {

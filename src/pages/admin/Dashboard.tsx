@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { dataProvider } from '../../core/provider';
 import { Class, User, Assignment, Announcement } from '../../core/types';
 import { Users, BookOpen, Bell, TrendingUp, GraduationCap, Clock, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { initialSyncToGAS } from '../../core/utils/sync';
 import { Modal } from '../../components/Modal';
 
 export const AdminDashboard: React.FC = () => {
@@ -11,7 +10,6 @@ export const AdminDashboard: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isTesting, setIsTesting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   
   const [alertMessage, setAlertMessage] = useState<{title: string, message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{title: string, message: string, onConfirm: () => void} | null>(null);
@@ -34,35 +32,6 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setIsTesting(false);
     }
-  };
-
-  const handleSyncData = () => {
-    setConfirmDialog({
-      title: 'Xác nhận đồng bộ',
-      message: 'Bạn có chắc chắn muốn đồng bộ toàn bộ dữ liệu hiện tại lên Google Sheet? Việc này sẽ ghi đè dữ liệu cũ trên Sheet.',
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        setIsSyncing(true);
-        try {
-          await initialSyncToGAS();
-          setAlertMessage({
-            title: 'Đồng bộ thành công',
-            message: 'Dữ liệu đã được đồng bộ lên Google Sheet!',
-            type: 'success'
-          });
-          // Refresh data after a short delay
-          setTimeout(() => window.location.reload(), 2000);
-        } catch (error) {
-          setAlertMessage({
-            title: 'Lỗi đồng bộ',
-            message: error instanceof Error ? error.message : String(error),
-            type: 'error'
-          });
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    });
   };
 
   useEffect(() => {
@@ -98,14 +67,6 @@ export const AdminDashboard: React.FC = () => {
           >
             <RefreshCw size={16} className={isTesting ? 'animate-spin' : ''} />
             {isTesting ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
-          </button>
-          <button 
-            onClick={handleSyncData}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-xl text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-            {isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
           </button>
         </div>
       </div>
@@ -189,7 +150,7 @@ export const AdminDashboard: React.FC = () => {
             {announcements.filter(Boolean).map(ann => (
               <div key={ann.id} className="p-4 rounded-xl bg-gray-50 border border-gray-100">
                 <h4 className="font-semibold text-gray-900">{ann.title}</h4>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{ann.content}</p>
+                <div className="text-sm text-gray-600 mt-1 line-clamp-2 html-content" dangerouslySetInnerHTML={{ __html: String(ann.content || '') }}></div>
                 <p className="text-xs text-gray-400 mt-2">
                   {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                 </p>

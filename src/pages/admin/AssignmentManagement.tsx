@@ -92,6 +92,7 @@ export const AssignmentManagement = () => {
   const [selectedBankQuestions, setSelectedBankQuestions] = useState<string[]>([]);
   const [qbFilterSubject, setQbFilterSubject] = useState('');
   const [qbFilterTopic, setQbFilterTopic] = useState('');
+  const [qbFilterLesson, setQbFilterLesson] = useState('');
   const [qbFilterDifficulty, setQbFilterDifficulty] = useState('');
   const [qbFilterType, setQbFilterType] = useState('');
   const [qbSearch, setQbSearch] = useState('');
@@ -270,13 +271,14 @@ export const AssignmentManagement = () => {
   };
 
   const filteredBankQuestions = bankQuestions.filter(q => {
-    const matchSubject = !qbFilterSubject || q.subjectId === qbFilterSubject;
-    const matchTopic = !qbFilterTopic || q.topicId === qbFilterTopic;
-    const matchDifficulty = !qbFilterDifficulty || q.difficulty === qbFilterDifficulty;
+    const matchSubject = !qbFilterSubject || String(q.subjectId) === String(qbFilterSubject);
+    const matchTopic = !qbFilterTopic || String(q.topicId) === String(qbFilterTopic);
+    const matchLesson = !qbFilterLesson || String(q.lessonId) === String(qbFilterLesson);
+    const matchDifficulty = !qbFilterDifficulty || String(q.difficulty) === String(qbFilterDifficulty);
     const matchSearch = !qbSearch || q.content?.toLowerCase()?.includes(qbSearch.toLowerCase());
-    const matchType = !qbFilterType || q.type === qbFilterType;
+    const matchType = !qbFilterType || String(q.type) === String(qbFilterType);
 
-    return matchSubject && matchTopic && matchDifficulty && matchSearch && matchType;
+    return matchSubject && matchTopic && matchLesson && matchDifficulty && matchSearch && matchType;
   });
 
   const handleToggleBankQuestion = (id: string) => {
@@ -2612,7 +2614,7 @@ export const AssignmentManagement = () => {
             </div>
             <select
               value={qbFilterSubject}
-              onChange={(e) => setQbFilterSubject(e.target.value)}
+              onChange={(e) => { setQbFilterSubject(e.target.value); setQbFilterTopic(''); setQbFilterLesson(''); }}
               className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
             >
               <option value="">Tất cả môn học</option>
@@ -2622,12 +2624,22 @@ export const AssignmentManagement = () => {
             </select>
             <select
               value={qbFilterTopic}
-              onChange={(e) => setQbFilterTopic(e.target.value)}
+              onChange={(e) => { setQbFilterTopic(e.target.value); setQbFilterLesson(''); }}
               className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
             >
               <option value="">Tất cả chủ đề</option>
               {topics.filter(t => !qbFilterSubject || t.subjectId === qbFilterSubject).map(topic => (
                 <option key={topic.id} value={topic.id}>{topic.name}</option>
+              ))}
+            </select>
+            <select
+              value={qbFilterLesson}
+              onChange={(e) => setQbFilterLesson(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+            >
+              <option value="">Tất cả bài học</option>
+              {lessons.filter(l => (!qbFilterSubject || topics.find(t => t.id === l.topicId)?.subjectId === qbFilterSubject) && (!qbFilterTopic || l.topicId === qbFilterTopic)).map(lesson => (
+                <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
               ))}
             </select>
             <select

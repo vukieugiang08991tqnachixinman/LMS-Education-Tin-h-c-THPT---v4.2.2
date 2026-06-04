@@ -47,7 +47,7 @@ export default function App() {
     // Initial sync with GAS in background
     dataProvider.syncWithGAS().catch(err => {
       if (err.message !== 'GAS_NOT_CONFIGURED') {
-        console.error('Initial sync error:', err);
+        console.warn('Initial sync error:', err);
       }
     });
     

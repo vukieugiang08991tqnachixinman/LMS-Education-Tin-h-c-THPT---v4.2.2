@@ -38,7 +38,7 @@ export const StudentAssignments = () => {
       
       try {
         if (dataProvider.syncWithGAS) {
-          dataProvider.syncWithGAS().then(() => fetchData()).catch(console.error);
+          dataProvider.syncWithGAS().then(() => fetchData()).catch(console.warn);
         }
       } catch (e: any) {
         if (e.message !== 'GAS_NOT_CONFIGURED') {

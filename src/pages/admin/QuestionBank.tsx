@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dataProvider } from '../../core/provider';
-import { BankQuestion, Subject, Topic, QuestionType, QuestionDifficulty } from '../../core/types';
+import { BankQuestion, Subject, Topic, Lesson, QuestionType, QuestionDifficulty } from '../../core/types';
 import { Plus, Edit2, Trash2, Search, Filter, Sparkles, Upload, Loader2, Save, X, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -13,9 +13,11 @@ export const QuestionBank: React.FC = () => {
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [search, setSearch] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
   const [filterTopic, setFilterTopic] = useState('');
+  const [filterLesson, setFilterLesson] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState('');
   const [filterType, setFilterType] = useState('');
 
@@ -65,14 +67,16 @@ export const QuestionBank: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [qData, sData, tData] = await Promise.all([
+      const [qData, sData, tData, lData] = await Promise.all([
         dataProvider.getList<BankQuestion>('bank_questions'),
         dataProvider.getList<Subject>('subjects'),
-        dataProvider.getList<Topic>('topics')
+        dataProvider.getList<Topic>('topics'),
+        dataProvider.getList<Lesson>('lessons')
       ]);
       setQuestions(qData);
       setSubjects(sData);
       setTopics(tData);
+      setLessons(lData);
     } catch (error) {
       console.error("Error fetching data", error);
     }
@@ -269,6 +273,7 @@ export const QuestionBank: React.FC = () => {
         })),
         subjectId: aiConfig.subjectId,
         topicId: aiConfig.topicId,
+        lessonId: (aiConfig as any).lessonId,
         createdAt: new Date().toISOString()
       }));
 
@@ -430,6 +435,7 @@ export const QuestionBank: React.FC = () => {
               explanation,
               subjectId: excelImportConfig.subjectId,
               topicId: excelImportConfig.topicId,
+              lessonId: excelImportConfig.lessonId,
               createdAt: new Date().toISOString(),
               points: 0.25
             };
@@ -533,8 +539,9 @@ export const QuestionBank: React.FC = () => {
 
   const filteredQuestions = questions.filter(q => {
     if (search && !q.content?.toLowerCase()?.includes(search.toLowerCase())) return false;
-    if (filterSubject && q.subjectId !== filterSubject) return false;
-    if (filterTopic && q.topicId !== filterTopic) return false;
+    if (filterSubject && String(q.subjectId) !== String(filterSubject)) return false;
+    if (filterTopic && String(q.topicId) !== String(filterTopic)) return false;
+    if (filterLesson && String(q.lessonId) !== String(filterLesson)) return false;
     if (filterDifficulty && q.difficulty !== filterDifficulty) return false;
     if (filterType && q.type !== filterType) return false;
     return true;
@@ -596,7 +603,7 @@ export const QuestionBank: React.FC = () => {
         </div>
         <select 
           value={filterSubject}
-          onChange={(e) => setFilterSubject(e.target.value)}
+          onChange={(e) => { setFilterSubject(e.target.value); setFilterTopic(''); setFilterLesson(''); }}
           className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Tất cả môn học</option>
@@ -604,11 +611,19 @@ export const QuestionBank: React.FC = () => {
         </select>
         <select 
           value={filterTopic}
-          onChange={(e) => setFilterTopic(e.target.value)}
+          onChange={(e) => { setFilterTopic(e.target.value); setFilterLesson(''); }}
           className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Tất cả chủ đề</option>
           {topics.filter(t => !filterSubject || t.subjectId === filterSubject).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <select 
+          value={filterLesson}
+          onChange={(e) => setFilterLesson(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">Tất cả bài học</option>
+          {lessons.filter(l => (!filterSubject || topics.find(t => t.id === l.topicId)?.subjectId === filterSubject) && (!filterTopic || l.topicId === filterTopic)).map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
         </select>
         <select 
           value={filterDifficulty}
@@ -673,6 +688,7 @@ export const QuestionBank: React.FC = () => {
                   <div className="text-[10px] text-gray-400 mt-0.5">
                     {subjects.find(s => s.id === q.subjectId)?.name || 'N/A'} 
                     {q.topicId && ` - ${topics.find(t => t.id === q.topicId)?.name || 'N/A'}`}
+                    {q.lessonId && ` - ${lessons.find(l => l.id === q.lessonId)?.title || 'N/A'}`}
                   </div>
                 </td>
                 <td className="py-3 px-4 text-xs">
@@ -726,7 +742,7 @@ export const QuestionBank: React.FC = () => {
               <select 
                 required
                 value={questionForm.subjectId}
-                onChange={e => setQuestionForm({...questionForm, subjectId: e.target.value})}
+                onChange={e => setQuestionForm({...questionForm, subjectId: e.target.value, topicId: '', lessonId: ''})}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">Chọn môn học</option>
@@ -737,11 +753,25 @@ export const QuestionBank: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
               <select 
                 value={questionForm.topicId}
-                onChange={e => setQuestionForm({...questionForm, topicId: e.target.value})}
+                onChange={e => setQuestionForm({...questionForm, topicId: e.target.value, lessonId: ''})}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">Chọn chủ đề</option>
                 {topics.filter(t => !questionForm.subjectId || t.subjectId === questionForm.subjectId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bài học</label>
+              <select 
+                value={questionForm.lessonId || ''}
+                onChange={e => setQuestionForm({...questionForm, lessonId: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">Chọn bài học</option>
+                {lessons.filter(l => (!questionForm.subjectId || topics.find(t => t.id === l.topicId)?.subjectId === questionForm.subjectId) && (!questionForm.topicId || l.topicId === questionForm.topicId)).map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
               </select>
             </div>
           </div>
@@ -981,7 +1011,7 @@ export const QuestionBank: React.FC = () => {
               <select 
                 required
                 value={aiConfig.subjectId}
-                onChange={e => setAiConfig({...aiConfig, subjectId: e.target.value})}
+                onChange={e => setAiConfig({...aiConfig, subjectId: e.target.value, topicId: '', lessonId: ''} as any)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">Chọn môn học</option>
@@ -992,11 +1022,25 @@ export const QuestionBank: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
               <select 
                 value={aiConfig.topicId}
-                onChange={e => setAiConfig({...aiConfig, topicId: e.target.value})}
+                onChange={e => setAiConfig({...aiConfig, topicId: e.target.value, lessonId: ''} as any)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">Chọn chủ đề</option>
                 {topics.filter(t => !aiConfig.subjectId || t.subjectId === aiConfig.subjectId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bài học</label>
+              <select 
+                value={(aiConfig as any).lessonId || ''}
+                onChange={e => setAiConfig({...aiConfig, lessonId: e.target.value} as any)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">Chọn bài học</option>
+                {lessons.filter(l => (!aiConfig.subjectId || topics.find(t => t.id === l.topicId)?.subjectId === aiConfig.subjectId) && (!aiConfig.topicId || l.topicId === aiConfig.topicId)).map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
               </select>
             </div>
           </div>
@@ -1118,7 +1162,7 @@ export const QuestionBank: React.FC = () => {
               <select 
                 required
                 value={excelImportConfig.subjectId}
-                onChange={e => setExcelImportConfig({...excelImportConfig, subjectId: e.target.value})}
+                onChange={e => setExcelImportConfig({...excelImportConfig, subjectId: e.target.value, topicId: '', lessonId: ''})}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">Chọn môn học</option>
@@ -1129,11 +1173,25 @@ export const QuestionBank: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
               <select 
                 value={excelImportConfig.topicId}
-                onChange={e => setExcelImportConfig({...excelImportConfig, topicId: e.target.value})}
+                onChange={e => setExcelImportConfig({...excelImportConfig, topicId: e.target.value, lessonId: ''})}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">Chọn chủ đề</option>
                 {topics.filter(t => !excelImportConfig.subjectId || t.subjectId === excelImportConfig.subjectId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bài học</label>
+              <select 
+                value={excelImportConfig.lessonId || ''}
+                onChange={e => setExcelImportConfig({...excelImportConfig, lessonId: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">Chọn bài học</option>
+                {lessons.filter(l => (!excelImportConfig.subjectId || topics.find(t => t.id === l.topicId)?.subjectId === excelImportConfig.subjectId) && (!excelImportConfig.topicId || l.topicId === excelImportConfig.topicId)).map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
               </select>
             </div>
           </div>

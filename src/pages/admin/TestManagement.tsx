@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { dataProvider } from '../../core/provider';
-import { Test, Class, Topic, Question, QuestionType, BankQuestion, Subject } from '../../core/types';
+import { Test, Class, Topic, Question, QuestionType, BankQuestion, Subject, Lesson } from '../../core/types';
 import { Modal } from '../../components/Modal';
 import { Plus, Search, Edit2, Trash2, Clock, Users, Sparkles, Loader2, Calendar, FileUp, Download, FileSpreadsheet } from 'lucide-react';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
@@ -65,26 +65,30 @@ export const TestManagement: React.FC = () => {
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
   const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [selectedBankQuestions, setSelectedBankQuestions] = useState<string[]>([]);
   const [bankSearch, setBankSearch] = useState('');
   const [bankFilterSubject, setBankFilterSubject] = useState('');
   const [bankFilterTopic, setBankFilterTopic] = useState('');
+  const [bankFilterLesson, setBankFilterLesson] = useState('');
   const [bankFilterDifficulty, setBankFilterDifficulty] = useState('');
   const [bankFilterType, setBankFilterType] = useState('');
 
   const fetchData = async () => {
-    const [testsData, classesData, topicsData, bankData, subjectsData] = await Promise.all([
+    const [testsData, classesData, topicsData, bankData, subjectsData, lessonsData] = await Promise.all([
       dataProvider.getList<Test>('tests'),
       dataProvider.getList<Class>('classes'),
       dataProvider.getList<Topic>('topics'),
       dataProvider.getList<BankQuestion>('bank_questions'),
-      dataProvider.getList<Subject>('subjects')
+      dataProvider.getList<Subject>('subjects'),
+      dataProvider.getList<Lesson>('lessons')
     ]);
     setTests(testsData);
     setClasses(classesData);
     setTopics(topicsData);
     setBankQuestions(bankData);
     setSubjects(subjectsData);
+    setLessons(lessonsData);
   };
 
   useEffect(() => {
@@ -1353,7 +1357,7 @@ export const TestManagement: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <select 
               value={bankFilterSubject}
-              onChange={(e) => setBankFilterSubject(e.target.value)}
+              onChange={(e) => { setBankFilterSubject(e.target.value); setBankFilterTopic(''); setBankFilterLesson(''); }}
               className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Tất cả môn học</option>
@@ -1361,11 +1365,19 @@ export const TestManagement: React.FC = () => {
             </select>
             <select 
               value={bankFilterTopic}
-              onChange={(e) => setBankFilterTopic(e.target.value)}
+              onChange={(e) => { setBankFilterTopic(e.target.value); setBankFilterLesson(''); }}
               className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Tất cả chủ đề</option>
               {topics.filter(t => !bankFilterSubject || t.subjectId === bankFilterSubject).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <select 
+              value={bankFilterLesson}
+              onChange={(e) => setBankFilterLesson(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Tất cả bài học</option>
+              {lessons.filter(l => (!bankFilterSubject || topics.find(t => t.id === l.topicId)?.subjectId === bankFilterSubject) && (!bankFilterTopic || l.topicId === bankFilterTopic)).map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1405,10 +1417,11 @@ export const TestManagement: React.FC = () => {
           <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-xl">
             {bankQuestions.filter(q => {
               if (bankSearch && !q.content?.toLowerCase()?.includes(bankSearch.toLowerCase())) return false;
-              if (bankFilterSubject && q.subjectId !== bankFilterSubject) return false;
-              if (bankFilterTopic && q.topicId !== bankFilterTopic) return false;
-              if (bankFilterDifficulty && q.difficulty !== bankFilterDifficulty) return false;
-              if (bankFilterType && q.type !== bankFilterType) return false;
+              if (bankFilterSubject && String(q.subjectId) !== String(bankFilterSubject)) return false;
+              if (bankFilterTopic && String(q.topicId) !== String(bankFilterTopic)) return false;
+              if (bankFilterLesson && String(q.lessonId) !== String(bankFilterLesson)) return false;
+              if (bankFilterDifficulty && String(q.difficulty) !== String(bankFilterDifficulty)) return false;
+              if (bankFilterType && String(q.type) !== String(bankFilterType)) return false;
               return true;
             }).map((q, index) => (
               <label key={`${q.id}-${index}`} className="flex items-start gap-3 p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">

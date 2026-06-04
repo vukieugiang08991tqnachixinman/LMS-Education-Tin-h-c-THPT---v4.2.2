@@ -139,7 +139,7 @@ export async function callGAS(action: string, payload: any = {}) {
     return finalData;
   } catch (error: any) {
     if (error.message !== 'GAS_NOT_CONFIGURED') {
-      console.error(`[GAS] Connection Error (${action}):`, error);
+      console.warn(`[GAS] Connection Error (${action}):`, error);
     }
     throw error;
   }
@@ -171,6 +171,10 @@ export function mapToBackend(resource: string, record: any) {
   // Ensure correctAnswer and explanation are sent in both raw and Json formats
   // to be compatible with any backend schema
   if (resource === 'bank_questions') {
+    mapped.lessonId = mapped.lessonId || '';
+    if (mapped.lessonId) {
+      mapped.topicId = `${mapped.topicId}|||${mapped.lessonId}`;
+    }
     if (record.correctAnswer !== undefined) {
       mapped.correctAnswer = record.correctAnswer;
       mapped.correctAnswerJson = JSON.stringify(record.correctAnswer);
@@ -204,20 +208,46 @@ export function mapToBackend(resource: string, record: any) {
   return mapped;
 }
 
+export function mapFromBackend(resource: string, record: any) {
+  if (!record) return record;
+  const mapped = { ...record };
+  if (resource === 'bank_questions' && mapped.topicId && typeof mapped.topicId === 'string' && mapped.topicId.includes('|||')) {
+    const parts = mapped.topicId.split('|||');
+    mapped.topicId = parts[0];
+    mapped.lessonId = parts[1] || mapped.lessonId;
+  }
+  return mapped;
+}
+
 export const gasProvider: DataProvider = {
-  login: async (username, role, password) => {
-    const allData = await callGAS('fetch_all');
+  login: async (username, role, password, classId) => {
+    const allData = await gasProvider.fetchAll?.() || await callGAS('fetch_all');
     const users = allData.users || [];
-    const user = users.find((u: User) => String(u.username) === String(username) && String(u.role) === String(role) && String(u.password) === String(password));
-    if (user) {
-      // Sync all data from GAS to local storage on login
-      localStorage.setItem('lms_data', JSON.stringify(allData));
-      
-      currentUser = user;
-      localStorage.setItem('lms_current_user', JSON.stringify(user));
-      return user;
+    const matchedUsers = users.filter((u: User) => String(u.username) === String(username) && String(u.role) === String(role) && String(u.password) === String(password));
+    
+    if (matchedUsers.length > 0) {
+      let user;
+      if (role === 'student') {
+        if (classId) {
+           user = matchedUsers.find((u: User) => String(u.classId) === String(classId));
+           if (!user) throw new Error('Tài khoản này không thuộc lớp bạn đã chọn.');
+        } else {
+           throw new Error('Vui lòng chọn lớp học.');
+        }
+      } else {
+        user = matchedUsers[0];
+      }
+
+      if (user) {
+        // Sync all data from GAS to local storage on login
+        localStorage.setItem('lms_data', JSON.stringify(allData));
+        
+        currentUser = user;
+        localStorage.setItem('lms_current_user', JSON.stringify(user));
+        return user;
+      }
     }
-    return null;
+    throw new Error('Tên đăng nhập hoặc mật khẩu không đúng');
   },
   getCurrentUser: () => {
     if (currentUser) return currentUser;
@@ -239,7 +269,7 @@ export const gasProvider: DataProvider = {
   },
 
   getList: async <T>(resource: string, params?: any): Promise<T[]> => {
-    const allData = await callGAS('fetch_all');
+    const allData = await gasProvider.fetchAll?.() || await callGAS('fetch_all');
     let list = allData[resource] || [];
     
     if (params) {
@@ -253,7 +283,7 @@ export const gasProvider: DataProvider = {
     return list;
   },
   getOne: async <T>(resource: string, id: string): Promise<T> => {
-    const allData = await callGAS('fetch_all');
+    const allData = await gasProvider.fetchAll?.() || await callGAS('fetch_all');
     const list = allData[resource] || [];
     const item = list.find((i: any) => i.id === id);
     if (!item) throw new Error('Not found');
@@ -298,7 +328,15 @@ export const gasProvider: DataProvider = {
     return { message: 'Báo cáo lớp học từ Google Sheet' };
   },
   fetchAll: async () => {
-    return await callGAS('fetch_all');
+    const allData = await callGAS('fetch_all');
+    if (allData) {
+      Object.keys(allData).forEach(resource => {
+        if (Array.isArray(allData[resource])) {
+          allData[resource] = allData[resource].map((item: any) => mapFromBackend(resource, item));
+        }
+      });
+    }
+    return allData;
   },
   callGAS: async (action, payload) => {
     return await callGAS(action, payload);

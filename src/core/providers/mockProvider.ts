@@ -121,6 +121,7 @@ export const seedData = (): MockData => {
         id: 'bq1',
         subjectId: 'sub1',
         topicId: 'top1',
+        lessonId: '',
         type: 'multiple_choice',
         difficulty: 'recognition',
         content: 'Đâu là thiết bị đầu vào?',
@@ -133,6 +134,7 @@ export const seedData = (): MockData => {
         id: 'bq2',
         subjectId: 'sub1',
         topicId: 'top1',
+        lessonId: '',
         type: 'short_answer',
         difficulty: 'understanding',
         content: 'CPU là viết tắt của từ gì?',
@@ -180,15 +182,31 @@ const saveData = (data: MockData) => {
 let currentUser: User | null = null;
 
 export const mockProvider: DataProvider = {
-  login: async (username, role, password) => {
+  login: async (username, role, password, classId) => {
     const data = getData();
-    const user = data.users.find(u => u.username === username && u.role === role && (!password || u.password === password));
-    if (user) {
-      currentUser = user;
-      localStorage.setItem('lms_current_user', JSON.stringify(user));
-      return user;
+    const matchedUsers = data.users.filter(u => u.username === username && u.role === role && (!password || u.password === password));
+    
+    if (matchedUsers.length > 0) {
+      let user;
+      if (role === 'student') {
+        if (classId) {
+           user = matchedUsers.find(u => String(u.classId) === String(classId));
+           if (!user) throw new Error('Tài khoản này không thuộc lớp bạn đã chọn.');
+        } else {
+           throw new Error('Vui lòng chọn lớp học.');
+        }
+      } else {
+        user = matchedUsers[0];
+      }
+
+      if (user) {
+        currentUser = user;
+        localStorage.setItem('lms_current_user', JSON.stringify(user));
+        return user;
+      }
     }
-    return null;
+    
+    throw new Error('Tên đăng nhập hoặc mật khẩu không đúng');
   },
   getCurrentUser: () => {
     if (currentUser) return currentUser;

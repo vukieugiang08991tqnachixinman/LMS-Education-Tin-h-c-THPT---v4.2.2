@@ -7,6 +7,8 @@ export const Login: React.FC = () => {
   const [role, setRole] = useState<'teacher' | 'student'>('student');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [classes, setClasses] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -17,23 +19,33 @@ export const Login: React.FC = () => {
     if (user) {
       navigate(user.role === 'teacher' ? '/admin' : '/app');
     }
+    
+    // Load classes for student selection
+    dataProvider.getList('classes').then(res => setClasses(res)).catch(err => console.error(err));
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (role === 'student' && !selectedClassId) {
+      setError('Vui lòng chọn lớp học của bạn.');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      const user = await dataProvider.login(username, role, password);
+      const user = await dataProvider.login(username, role, password, selectedClassId);
       
       if (user) {
         navigate(user.role === 'teacher' ? '/admin' : '/app');
       } else {
+        // Fallback generic error
         setError('Tên đăng nhập, mật khẩu hoặc vai trò không đúng.');
       }
     } catch (err) {
-      setError('Lỗi kết nối đến máy chủ. Vui lòng thử lại.');
+      setError(err instanceof Error ? err.message : 'Lỗi kết nối đến máy chủ. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
@@ -95,6 +107,20 @@ export const Login: React.FC = () => {
                 Giáo viên
               </button>
             </div>
+
+            {role === 'student' && (
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="w-full bg-[#d1e7dd] text-[#1a7a53] px-6 py-3.5 rounded-full mb-4 focus:outline-none text-center font-medium appearance-none"
+                required
+              >
+                <option value="">-- Chọn lớp học --</option>
+                {classes.sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
 
             <input
               type="text"

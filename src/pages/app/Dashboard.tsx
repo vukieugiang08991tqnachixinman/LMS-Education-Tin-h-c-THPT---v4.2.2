@@ -86,7 +86,7 @@ export const StudentDashboard: React.FC = () => {
       
       try {
         if (dataProvider.syncWithGAS) {
-          dataProvider.syncWithGAS().then(() => fetchData()).catch(console.error);
+          dataProvider.syncWithGAS().then(() => fetchData()).catch(console.warn);
         }
       } catch (e: any) {
         if (e.message !== 'GAS_NOT_CONFIGURED') {
@@ -322,7 +322,7 @@ export const StudentDashboard: React.FC = () => {
               <div key={ann.id} className="relative pl-6 border-l-2 border-violet-300 hover:border-violet-500 transition-colors">
                 <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-violet-500"></div>
                 <h4 className="font-bold text-violet-900 text-sm mb-1">{ann.title}</h4>
-                <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">{ann.content}</p>
+                <div className="text-slate-600 text-sm line-clamp-2 leading-relaxed html-content" dangerouslySetInnerHTML={{ __html: String(ann.content || '') }}></div>
                 <p className="text-[10px] text-violet-500 mt-2 font-black uppercase tracking-widest">
                   {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                 </p>

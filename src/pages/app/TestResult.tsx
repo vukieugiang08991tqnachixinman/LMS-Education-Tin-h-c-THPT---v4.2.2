@@ -24,7 +24,7 @@ export const TestResult: React.FC = () => {
       try {
         // Background sync to keep fresh data without blocking UI
         if (dataProvider.syncWithGAS) {
-          dataProvider.syncWithGAS().catch(console.error);
+          dataProvider.syncWithGAS().catch(console.warn);
         }
         const testData = await dataProvider.getOne<Test>('tests', id);
         if (testData && testData.questions) {
