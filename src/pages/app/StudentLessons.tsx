@@ -194,7 +194,13 @@ export const StudentLessons = () => {
                             key={lesson.id}
                             variants={itemVariants}
                             whileHover={{ y: -4 }}
-                            onClick={() => navigate(`/app/lessons/${lesson.id}`)}
+                            onClick={() => {
+                              if (isOverdue) {
+                                alert('Bài giảng đã hết hạn do bạn chưa hoàn thành trong thời gian quy định');
+                              } else {
+                                navigate(`/app/lessons/${lesson.id}`);
+                              }
+                            }}
                             className={`group relative bg-white border-2 rounded-[2rem] p-6 transition-all cursor-pointer ${
                               isCompleted ? 'border-emerald-100 hover:border-emerald-300 hover:shadow-xl hover:shadow-emerald-100' : 
                               isOverdue ? 'border-red-100 hover:border-red-300 hover:shadow-xl hover:shadow-red-100' :

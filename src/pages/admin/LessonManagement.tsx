@@ -203,6 +203,16 @@ const LessonManagement = () => {
     if (lesson) {
       setEditingLesson(lesson);
       const topic = topics.find(t => t.id === lesson.topicId);
+      
+      // format date for datetime-local input
+      let formattedDueDate = '';
+      if (lesson.dueDate) {
+        try {
+          const d = new Date(lesson.dueDate);
+          formattedDueDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        } catch(e) {}
+      }
+
       setFormData({
         title: lesson.title,
         content: lesson.content,
@@ -214,7 +224,7 @@ const LessonManagement = () => {
         order: lesson.order,
         pptUrl: lesson.pptUrl || '',
         videoUrl: lesson.videoUrl || '',
-        dueDate: lesson.dueDate || '',
+        dueDate: formattedDueDate,
         interactiveContent: ensureArray(lesson.interactiveContent),
         essayQuestions: ensureArray(lesson.essayQuestions)
       });
@@ -256,7 +266,7 @@ const LessonManagement = () => {
       order: formData.order,
       pptUrl: formData.pptUrl,
       videoUrl: formData.videoUrl,
-      dueDate: formData.dueDate || undefined,
+      dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
       interactiveContent: formData.interactiveContent,
       essayQuestions: formData.essayQuestions
     };

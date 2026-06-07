@@ -11,7 +11,7 @@ const SCHEMA = {
   'classes': ['id', 'name', 'grade', 'teacherId', 'teacherName', 'academicYear'],
   'subjects': ['id', 'name', 'description'],
   'topics': ['id', 'subjectId', 'name', 'order'],
-  'lessons': ['id', 'topicId', 'title', 'content', 'videoUrl', 'pptUrl', 'order', 'status', 'grade', 'classId', 'interactiveContentJson', 'essayQuestionsJson'],
+  'lessons': ['id', 'topicId', 'title', 'content', 'videoUrl', 'pptUrl', 'order', 'status', 'grade', 'classId', 'interactiveContentJson', 'essayQuestionsJson', 'dueDate'],
   'assignments': ['id', 'lessonId', 'title', 'description', 'dueDate', 'grade', 'classId', 'subjectId', 'topicId', 'studentIdsJson', 'attachmentsJson', 'questionsJson', 'part1', 'part2', 'part3', 'part4'],
   'bank_questions': ['id', 'type', 'difficulty', 'content', 'optionsJson', 'correctAnswerJson', 'subQuestionsJson', 'points', 'explanation', 'subjectId', 'topicId', 'createdAt'],
   'tests': ['id', 'title', 'topicId', 'durationMinutes', 'startTime', 'endTime', 'questionsJson', 'assignedToJson', 'createdAt'],

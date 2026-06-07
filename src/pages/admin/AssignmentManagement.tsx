@@ -819,16 +819,28 @@ export const AssignmentManagement = () => {
     if (filterTopicId && assignment.topicId !== filterTopicId) return false;
 
     // Status filters
-    const overdue = isOverdue(assignment.dueDate);
+    let studentIds = assignment.studentIds || [];
+    if (typeof studentIds === 'string') {
+      try { studentIds = JSON.parse(studentIds); } catch(e) { studentIds = []; }
+    }
+    if (!Array.isArray(studentIds)) studentIds = [];
+    const assignedCount = studentIds.length;
     const assignmentSubmissions = allSubmissions.filter(s => s.assignmentId === assignment.id);
-    const hasSubmissions = assignmentSubmissions.length > 0;
-    const allGraded = hasSubmissions && assignmentSubmissions.every(s => s.score !== undefined && s.score !== null);
+    const submittedStudentIds = new Set(assignmentSubmissions.map(s => s.studentId));
+    const submittedCount = submittedStudentIds.size;
+    const unsubmittedCount = assignedCount - submittedCount;
+    const gradedCount = new Set(assignmentSubmissions.filter(s => s.score !== undefined && s.score !== null).map(s => s.studentId)).size;
+    const overdue = isOverdue(assignment.dueDate);
+    const hasPending = unsubmittedCount > 0 && !overdue;
+    const hasOverdue = unsubmittedCount > 0 && overdue;
+    const hasSubmitted = submittedCount > 0;
+    const allGraded = submittedCount > 0 && gradedCount === submittedCount;
 
     if (filterAssignmentStatus === 'all') return true;
-    if (filterAssignmentStatus === 'pending') return !hasSubmissions && !overdue;
-    if (filterAssignmentStatus === 'submitted') return hasSubmissions && !allGraded;
+    if (filterAssignmentStatus === 'pending') return hasPending;
+    if (filterAssignmentStatus === 'submitted') return hasSubmitted && !allGraded;
     if (filterAssignmentStatus === 'graded') return allGraded;
-    if (filterAssignmentStatus === 'overdue') return overdue;
+    if (filterAssignmentStatus === 'overdue') return hasOverdue;
     return true;
   });
 
@@ -942,12 +954,28 @@ export const AssignmentManagement = () => {
                 <th className="py-4 px-6 text-sm font-semibold text-gray-600">Tiêu đề</th>
                 <th className="py-4 px-6 text-sm font-semibold text-gray-600">Khối/Lớp</th>
                 <th className="py-4 px-6 text-sm font-semibold text-gray-600">Hạn nộp</th>
+                <th className="py-4 px-6 text-sm font-semibold text-gray-600">Thống kê</th>
                 <th className="py-4 px-6 text-sm font-semibold text-gray-600 text-right">Hành động</th>
               </tr>
             </thead>
             <tbody>
               {filteredAssignments.map(assignment => {
                 const cls = classes.find(c => String(c.id) === String(assignment.classId));
+                let studentIds = assignment.studentIds || [];
+                if (typeof studentIds === 'string') {
+                  try { studentIds = JSON.parse(studentIds); } catch(e) { studentIds = []; }
+                }
+                if (!Array.isArray(studentIds)) studentIds = [];
+                const assignedCount = studentIds.length;
+                const assignmentSubmissions = allSubmissions.filter(s => s.assignmentId === assignment.id);
+                const submittedStudentIds = new Set(assignmentSubmissions.map(s => s.studentId));
+                const submittedCount = submittedStudentIds.size;
+                const unsubmittedCount = assignedCount - submittedCount;
+                const gradedCount = new Set(assignmentSubmissions.filter(s => s.score !== undefined && s.score !== null).map(s => s.studentId)).size;
+                const isOverdue = new Date(assignment.dueDate).getTime() < new Date().getTime();
+                const overdueCount = isOverdue ? unsubmittedCount : 0;
+                const actualUnsubmitted = isOverdue ? 0 : unsubmittedCount;
+
                 return (
                   <tr key={assignment.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="py-4 px-6">
@@ -960,20 +988,18 @@ export const AssignmentManagement = () => {
                     </td>
                     <td className="py-4 px-6 text-gray-600">
                       {assignment.grade ? `Khối ${assignment.grade}` : ''} {cls ? `- ${cls.name}` : ''}
-                      {(() => {
-                        let studentIds = assignment.studentIds;
-                        if (typeof studentIds === 'string') {
-                          try {
-                            studentIds = JSON.parse(studentIds);
-                          } catch (e) {
-                            studentIds = [];
-                          }
-                        }
-                        return studentIds && studentIds.length > 0 ? ` (${studentIds.length} học sinh)` : '';
-                      })()}
+                      {assignedCount > 0 ? ` (${assignedCount} học sinh)` : ''}
                     </td>
                     <td className="py-4 px-6 text-gray-600">
                       {new Date(assignment.dueDate).toLocaleDateString('vi-VN')}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md font-medium" title="Đã nộp">Nộp: {submittedCount}</span>
+                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-medium" title="Đã chấm">Chấm: {gradedCount}</span>
+                        {actualUnsubmitted > 0 && <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-md font-medium" title="Chưa nộp">Chưa nộp: {actualUnsubmitted}</span>}
+                        {overdueCount > 0 && <span className="bg-rose-50 text-rose-700 px-2 py-1 rounded-md font-medium" title="Quá hạn">Quá hạn: {overdueCount}</span>}
+                      </div>
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -1457,22 +1483,81 @@ export const AssignmentManagement = () => {
             <div className="space-y-8">
               {lessonAssignments.map(assignment => {
                 const submissions = lessonSubmissions.filter(s => s.assignmentId === assignment.id);
+                let studentIds = assignment.studentIds || [];
+                if (typeof studentIds === 'string') {
+                  try { studentIds = JSON.parse(studentIds); } catch(e) { studentIds = []; }
+                }
+                if (!Array.isArray(studentIds)) studentIds = [];
+                const assignedCount = studentIds.length;
+                const submittedStudentIds = new Set(submissions.map(s => s.studentId));
+                const submittedCount = submittedStudentIds.size;
+                const unsubmittedCount = assignedCount - submittedCount;
+                const gradedCount = new Set(submissions.filter(s => s.score !== undefined && s.score !== null).map(s => s.studentId)).size;
+                const isOverdue = new Date(assignment.dueDate).getTime() < new Date().getTime();
+                const overdueCount = isOverdue ? unsubmittedCount : 0;
+                const actualUnsubmitted = isOverdue ? 0 : unsubmittedCount;
                 
                 return (
                   <div key={assignment.id} className="border border-gray-200 rounded-2xl overflow-hidden">
                     <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                       <h4 className="font-bold text-gray-900">{assignment.title}</h4>
-                      <p className="text-sm text-gray-500 mt-1">Hạn nộp: {new Date(assignment.dueDate).toLocaleDateString('vi-VN')} • {submissions.length} bài nộp</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <span className="text-sm font-medium text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">
+                          Hạn nộp: {new Date(assignment.dueDate).toLocaleDateString('vi-VN')}
+                        </span>
+                        {assignedCount > 0 && <span className="text-sm text-gray-500">• {assignedCount} học sinh</span>}
+                        <div className="flex border-l pl-3 gap-2 ml-1 text-xs">
+                          <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 flex items-center justify-center rounded font-medium" title="Đã nộp">Nộp: {submittedCount}</span>
+                          <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 flex items-center justify-center rounded font-medium" title="Đã chấm">Chấm: {gradedCount}</span>
+                          {actualUnsubmitted > 0 && <span className="bg-amber-50 border border-amber-100 text-amber-700 px-2 flex items-center justify-center rounded font-medium" title="Chưa nộp">Chưa nộp: {actualUnsubmitted}</span>}
+                          {overdueCount > 0 && <span className="bg-rose-50 border border-rose-100 text-rose-700 px-2 flex items-center justify-center rounded font-medium" title="Quá hạn">Quá hạn: {overdueCount}</span>}
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="divide-y divide-gray-100">
-                      {submissions.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-gray-500">
-                          Chưa có học sinh nào nộp bài.
-                        </div>
-                      ) : (
-                        submissions.map(submission => {
-                          const student = students.find(s => s.id === submission.studentId);
+                      {(() => {
+                        let studentIds = assignment.studentIds || [];
+                        if (typeof studentIds === 'string') {
+                          try { studentIds = JSON.parse(studentIds); } catch(e) { studentIds = []; }
+                        }
+                        if (!Array.isArray(studentIds)) studentIds = [];
+                        
+                        const submittedStudentIds = new Set(submissions.map(s => s.studentId));
+                        const allRelatedStudentIds = Array.from(new Set([...studentIds, ...Array.from(submittedStudentIds)]));
+
+                        if (allRelatedStudentIds.length === 0) {
+                          return (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                              Chưa có học sinh nào được giao bài tập này.
+                            </div>
+                          );
+                        }
+
+                        return allRelatedStudentIds.map(studentId => {
+                          const submission = submissions.find(s => s.studentId === studentId);
+                          const student = students.find(s => s.id === studentId);
+                          const isAssigned = studentIds.includes(studentId);
+                          
+                          if (!submission) {
+                            const isOverdue = new Date(assignment.dueDate).getTime() < new Date().getTime();
+                            return (
+                              <div key={`unsubmitted-${studentId}`} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 opacity-70">
+                                <div>
+                                  <span className="font-bold text-gray-600">{student?.fullName || 'Học sinh ẩn danh'}</span>
+                                  <span className="text-xs text-gray-400 ml-2">({student?.username})</span>
+                                </div>
+                                <div className="text-left sm:text-right">
+                                  {isOverdue ? (
+                                    <span className="text-sm font-medium text-rose-600 bg-rose-50 px-2 py-1 rounded-md border border-rose-100">Quá hạn</span>
+                                  ) : (
+                                    <span className="text-sm font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-md">Chưa nộp</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+                          
                           const isEditing = editingSubmissionId === submission.id;
                           
                           return (
@@ -1722,8 +1807,8 @@ export const AssignmentManagement = () => {
                               )}
                             </div>
                           );
-                        })
-                      )}
+                        });
+                      })()}
                     </div>
                   </div>
                 );

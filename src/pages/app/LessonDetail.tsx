@@ -613,7 +613,27 @@ export const LessonDetail = () => {
     );
   }
 
-  const isOverdue = lesson.dueDate && !progress?.completed && new Date(lesson.dueDate) < new Date();
+  if (lesson.dueDate && !progress?.completed && new Date(lesson.dueDate) < new Date()) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
+          <Clock size={32} className="text-red-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">Bài giảng đã hết hạn</h2>
+        <p className="text-slate-600 mb-8 max-w-md">
+          Bạn chưa hoàn thành bài giảng này trong thời gian quy định ({new Date(lesson.dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}).
+        </p>
+        <button 
+          onClick={() => navigate('/app/lessons')}
+          className="flex items-center text-indigo-600 hover:text-indigo-800 font-medium px-6 py-3 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors"
+        >
+          <ArrowLeft size={20} className="mr-2" /> Quay lại danh sách bài giảng
+        </button>
+      </div>
+    );
+  }
+
+  const isOverdue = false; // We just handled it above so it's not overdue here
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -678,11 +698,12 @@ export const LessonDetail = () => {
             </div>
           )}
 
-          <div className="prose prose-indigo max-w-none">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Nội dung / Yêu cầu cần đạt</h3>
-            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-6 rounded-xl border border-gray-100">
-              {lesson.content}
-            </div>
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 mb-8">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3">Nội dung / Yêu cầu cần đạt</h3>
+            <div 
+              className="html-content text-slate-700 bg-slate-50 p-5 rounded-xl border border-slate-200"
+              dangerouslySetInnerHTML={{ __html: lesson.content || '' }}
+            />
           </div>
 
           {lesson.videoUrl && (

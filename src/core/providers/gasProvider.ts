@@ -159,10 +159,20 @@ export function mapToBackend(resource: string, record: any) {
     'reports': ['data']
   };
 
+  // Intercept lessons mapping to pack dueDate into interactiveContent 
+  // since the user's Apps Script schema might not have the dueDate column.
+  if (resource === 'lessons' && record.dueDate) {
+    let interactiveContent = Array.isArray(record.interactiveContent) ? [...record.interactiveContent] : [];
+    // remove any existing meta to avoid duplicates
+    interactiveContent = interactiveContent.filter((b: any) => b.type !== '__meta__');
+    interactiveContent.unshift({ type: '__meta__', data: { dueDate: record.dueDate } });
+    mapped.interactiveContent = interactiveContent;
+  }
+
   if (jsonFields[resource]) {
     jsonFields[resource].forEach(field => {
-      if (record[field] !== undefined) {
-        mapped[`${field}Json`] = JSON.stringify(record[field]);
+      if (mapped[field] !== undefined) {
+        mapped[`${field}Json`] = JSON.stringify(mapped[field]);
         delete mapped[field];
       }
     });
@@ -216,6 +226,15 @@ export function mapFromBackend(resource: string, record: any) {
     mapped.topicId = parts[0];
     mapped.lessonId = parts[1] || mapped.lessonId;
   }
+  
+  if (resource === 'lessons' && Array.isArray(mapped.interactiveContent)) {
+    const metaBlock = mapped.interactiveContent.find((b: any) => b.type === '__meta__');
+    if (metaBlock && metaBlock.data && metaBlock.data.dueDate) {
+      mapped.dueDate = metaBlock.data.dueDate;
+    }
+    mapped.interactiveContent = mapped.interactiveContent.filter((b: any) => b.type !== '__meta__');
+  }
+  
   return mapped;
 }
 
