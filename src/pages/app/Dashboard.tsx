@@ -9,6 +9,7 @@ export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,14 +17,15 @@ export const StudentDashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [les, ass, ann, top, classes] = await Promise.all([
+      const currentUser = dataProvider.getCurrentUser();
+      const [les, ass, ann, top, classes, subs] = await Promise.all([
         dataProvider.getList<Lesson>('lessons'),
         dataProvider.getList<Assignment>('assignments'),
         dataProvider.getList<Announcement>('announcements'),
         dataProvider.getList<Topic>('topics'),
-        dataProvider.getList<Class>('classes')
+        dataProvider.getList<Class>('classes'),
+        currentUser ? dataProvider.getList<any>('submissions', { studentId: currentUser.id }) : Promise.resolve([])
       ]);
-      const currentUser = dataProvider.getCurrentUser();
       const filteredAnn = ann.filter(a => 
         a && (a.target === 'all' || 
         a.target === 'students' || 
@@ -76,6 +78,7 @@ export const StudentDashboard: React.FC = () => {
       
       setLessons(filteredLessons);
       setAssignments(filteredAssignments);
+      setSubmissions(subs);
       setAnnouncements(filteredAnn);
       setTopics(top);
       setLoading(false);
@@ -130,6 +133,8 @@ export const StudentDashboard: React.FC = () => {
       </div>
     );
   }
+
+  const pendingAssignments = assignments.filter(a => !submissions.some(s => s.assignmentId === a.id));
 
   return (
     <motion.div 
@@ -261,7 +266,7 @@ export const StudentDashboard: React.FC = () => {
             <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Nhiệm vụ 🎯</span>
           </div>
           <div>
-            <h4 className="text-4xl font-black text-slate-900 mb-1">{assignments.length}</h4>
+            <h4 className="text-4xl font-black text-slate-900 mb-1">{pendingAssignments.length}</h4>
             <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Bài tập đang chờ</p>
           </div>
         </motion.div>
@@ -348,7 +353,7 @@ export const StudentDashboard: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {assignments.slice(0, 2).filter(Boolean).map(assignment => (
+            {pendingAssignments.slice(0, 2).filter(Boolean).map(assignment => (
               <div key={assignment.id} className="p-5 rounded-[2rem] bg-white border border-amber-100 flex flex-col justify-between group hover:shadow-xl hover:border-amber-200 transition-all cursor-pointer" onClick={() => navigate('/app/assignments')}>
                 <div>
                   <h4 className="font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-amber-600 transition-colors">{assignment.title}</h4>
@@ -365,7 +370,7 @@ export const StudentDashboard: React.FC = () => {
                 </div>
               </div>
             ))}
-            {assignments.length === 0 && (
+            {pendingAssignments.length === 0 && (
               <div className="sm:col-span-2 text-center py-12 bg-white rounded-[2rem] border border-dashed border-amber-200">
                 <CheckCircle size={48} className="mx-auto mb-4 text-amber-400" />
                 <p className="text-slate-500 font-bold">Tuyệt vời! Bạn đã hoàn thành tất cả bài tập.</p>

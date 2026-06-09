@@ -1,16 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { dataProvider } from '../../core/provider';
 import { User, Class } from '../../core/types';
 import { Modal } from '../../components/Modal';
-import { Plus, Search, Edit2, Trash2, Users, ChevronDown } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Users, ChevronDown, Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export const StudentManagement: React.FC = () => {
   const [students, setStudents] = useState<User[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<User | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [importData, setImportData] = useState<any[]>([]);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // New state for Grade and Class selection
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
@@ -55,6 +61,70 @@ export const StudentManagement: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { raw: false });
+        
+        const parsedData = data.map((row: any) => {
+          let dobStr = row['Ngày sinh'] || '';
+          if (dobStr && dobStr.includes('/')) {
+             const parts = dobStr.split('/');
+             if (parts.length === 3) {
+                 const d = parts[0].padStart(2, '0');
+                 const m = parts[1].padStart(2, '0');
+                 const y = parts[2];
+                 dobStr = `${y}-${m}-${d}`;
+             }
+          }
+          return {
+            fullName: row['Họ tên'] || row['Họ và tên'] || '',
+            username: row['Tài khoản'] || row['Username'] || '',
+            password: row['Mật khẩu'] || row['Password'] || '123',
+            dob: dobStr,
+            classId: selectedClassId
+          };
+        }).filter((row: any) => row.fullName && row.username);
+        
+        setImportData(parsedData);
+      } catch (error) {
+        console.error("Error parsing Excel:", error);
+        alert("Lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleConfirmImport = async () => {
+    if (importData.length === 0) return;
+    
+    const newUsers = importData.map(student => ({
+      ...student,
+      role: 'student'
+    }));
+
+    if (dataProvider.createMany) {
+      await dataProvider.createMany('users', newUsers);
+    } else {
+      for (const student of newUsers) {
+        await dataProvider.create('users', student);
+      }
+    }
+    
+    setIsImportModalOpen(false);
+    setImportData([]);
+    fetchData();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
@@ -79,9 +149,15 @@ export const StudentManagement: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (confirmDelete) {
+    if (confirmDelete === 'multiple') {
+      await Promise.all(selectedStudentIds.map(id => dataProvider.delete('users', id)));
+      setConfirmDelete(null);
+      setSelectedStudentIds([]);
+      fetchData();
+    } else if (confirmDelete) {
       await dataProvider.delete('users', confirmDelete);
       setConfirmDelete(null);
+      setSelectedStudentIds(prev => prev.filter(id => id !== confirmDelete));
       fetchData();
     }
   };
@@ -94,17 +170,53 @@ export const StudentManagement: React.FC = () => {
     s.username?.toLowerCase()?.includes(search.toLowerCase())
   );
 
+  const handleToggleSelectAll = () => {
+    if (selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredStudents.map(s => s.id));
+    }
+  };
+
+  const handleToggleSelectStudent = (id: string) => {
+    if (selectedStudentIds.includes(id)) {
+      setSelectedStudentIds(prev => prev.filter(sId => sId !== id));
+    } else {
+      setSelectedStudentIds(prev => [...prev, id]);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Quản lý Học sinh</h2>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#1a7a53] text-white px-5 py-2.5 rounded-xl font-semibold shadow-[0_4px_0_#115e3e] hover:translate-y-[2px] hover:shadow-[0_2px_0_#115e3e] active:translate-y-[4px] active:shadow-[0_0px_0_#115e3e] transition-all"
-        >
-          <Plus size={20} />
-          <span>Thêm học sinh</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {selectedStudentIds.length > 0 && (
+            <button
+              onClick={() => setConfirmDelete('multiple')}
+              className="flex items-center w-full justify-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-[0_4px_0_#991b1b] hover:translate-y-[2px] hover:shadow-[0_2px_0_#991b1b] active:translate-y-[4px] active:shadow-[0_0px_0_#991b1b] transition-all sm:w-auto"
+            >
+              <Trash2 size={20} />
+              <span>Xóa ({selectedStudentIds.length})</span>
+            </button>
+          )}
+          {selectedClassId && (
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center justify-center w-full gap-2 bg-white text-gray-700 border-2 border-gray-200 px-5 py-2.5 rounded-xl font-semibold shadow-[0_4px_0_#e5e7eb] hover:bg-gray-50 hover:border-gray-300 hover:translate-y-[2px] hover:shadow-[0_2px_0_#e5e7eb] active:translate-y-[4px] active:shadow-[0_0px_0_#e5e7eb] transition-all sm:w-auto"
+            >
+              <Upload size={20} className="text-gray-500" />
+              <span>Nhập Excel</span>
+            </button>
+          )}
+          <button 
+            onClick={() => handleOpenModal()}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#1a7a53] text-white px-5 py-2.5 rounded-xl font-semibold shadow-[0_4px_0_#115e3e] hover:translate-y-[2px] hover:shadow-[0_2px_0_#115e3e] active:translate-y-[4px] active:shadow-[0_0px_0_#115e3e] transition-all"
+          >
+            <Plus size={20} />
+            <span>Thêm học sinh</span>
+          </button>
+        </div>
       </div>
 
       {/* Grade Selection */}
@@ -191,6 +303,14 @@ export const StudentManagement: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50/80 border-b border-gray-200">
+                  <th className="py-4 px-4 w-12 text-sm font-bold text-gray-700">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                      checked={selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0}
+                      onChange={handleToggleSelectAll}
+                    />
+                  </th>
                   <th className="py-4 px-6 text-sm font-bold text-gray-700 uppercase tracking-wider">Họ và tên</th>
                   <th className="py-4 px-6 text-sm font-bold text-gray-700 uppercase tracking-wider">Tài khoản</th>
                   <th className="py-4 px-6 text-sm font-bold text-gray-700 uppercase tracking-wider">Mật khẩu</th>
@@ -201,6 +321,14 @@ export const StudentManagement: React.FC = () => {
               <tbody>
                 {filteredStudents.length > 0 ? filteredStudents.map(student => (
                   <tr key={student.id} className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-gray-900">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        checked={selectedStudentIds.includes(student.id)}
+                        onChange={() => handleToggleSelectStudent(student.id)}
+                      />
+                    </td>
                     <td className="py-4 px-6 font-semibold text-gray-900">{student.fullName}</td>
                     <td className="py-4 px-6">
                       <span className="font-mono text-sm bg-gray-100 text-gray-700 px-2 py-1 rounded-md border border-gray-200">
@@ -236,7 +364,7 @@ export const StudentManagement: React.FC = () => {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center">
+                    <td colSpan={6} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         <Users size={48} className="mb-4 opacity-20" />
                         <p className="text-lg font-medium text-gray-500">Không tìm thấy học sinh nào</p>
@@ -277,7 +405,6 @@ export const StudentManagement: React.FC = () => {
               onChange={e => setFormData({...formData, username: e.target.value})}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono text-sm"
               placeholder="VD: hs_an"
-              disabled={!!editingStudent}
             />
           </div>
           <div>
@@ -336,13 +463,13 @@ export const StudentManagement: React.FC = () => {
       <Modal
         isOpen={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
-        title="Xác nhận xóa"
+        title={confirmDelete === 'multiple' ? "Xác nhận xóa nhiều học sinh" : "Xác nhận xóa"}
       >
         <div className="p-2">
           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <Trash2 size={32} />
           </div>
-          <p className="text-gray-700 text-center mb-8 font-medium">Bạn có chắc chắn muốn xóa học sinh này không? Hành động này không thể hoàn tác.</p>
+          <p className="text-gray-700 text-center mb-8 font-medium">Bạn có chắc chắn muốn xóa {confirmDelete === 'multiple' ? `${selectedStudentIds.length} học sinh đã chọn` : 'học sinh này'} không? Hành động này không thể hoàn tác.</p>
           <div className="flex justify-center gap-4">
             <button
               onClick={() => setConfirmDelete(null)}
@@ -355,6 +482,90 @@ export const StudentManagement: React.FC = () => {
               className="px-6 py-2.5 text-white bg-red-600 rounded-xl hover:bg-red-700 font-bold shadow-[0_4px_0_#991b1b] hover:translate-y-[2px] hover:shadow-[0_2px_0_#991b1b] active:translate-y-[4px] active:shadow-[0_0px_0_#991b1b] transition-all"
             >
               Xác nhận xóa
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => {
+          setIsImportModalOpen(false);
+          setImportData([]);
+        }}
+        title="Nhập danh sách học sinh"
+      >
+        <div className="space-y-6">
+          <div className="p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-sm">
+            <h4 className="font-bold mb-2">Hướng dẫn import:</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Tạo file Excel (.xlsx hoặc .xls) với các cột: <b>Họ tên</b>, <b>Tài khoản</b>, <b>Mật khẩu</b>, <b>Ngày sinh</b>.</li>
+              <li>Lưu ý: Nếu không có mật khẩu, hệ thống sẽ gán mặc định là <b>123</b>.</li>
+            </ul>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors">
+            <FileSpreadsheet size={48} className="text-[#1a7a53] mb-4" />
+            <input 
+              type="file" 
+              accept=".xlsx,.xls" 
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              id="excel-upload"
+            />
+            <label 
+              htmlFor="excel-upload"
+              className="cursor-pointer bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-sm hover:translate-y-[2px] active:translate-y-[4px] transition-all"
+            >
+              Chọn file Excel
+            </label>
+            {importData.length > 0 && <p className="mt-4 font-bold text-[#1a7a53] flex items-center gap-2"><CheckCircle2 size={18} /> Đã đọc {importData.length} học sinh</p>}
+          </div>
+
+          {importData.length > 0 && (
+            <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-xl">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-2 font-bold text-gray-700 border-b">Họ tên</th>
+                    <th className="px-4 py-2 font-bold text-gray-700 border-b">Tài khoản</th>
+                    <th className="px-4 py-2 font-bold text-gray-700 border-b">Mật khẩu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importData.map((row, idx) => (
+                    <tr key={idx} className="border-b last:border-0 hover:bg-gray-50">
+                      <td className="px-4 py-2">{row.fullName}</td>
+                      <td className="px-4 py-2 font-mono text-xs">{row.username}</td>
+                      <td className="px-4 py-2 font-mono text-xs">{row.password}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button 
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setImportData([]);
+              }}
+              className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 font-bold transition-colors"
+            >
+              Hủy bỏ
+            </button>
+            <button 
+              onClick={handleConfirmImport}
+              disabled={importData.length === 0}
+              className={`px-6 py-2.5 rounded-xl font-bold border-b-4 transition-all ${
+                importData.length === 0 
+                  ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' 
+                  : 'bg-[#1a7a53] text-white border-[#115e3e] hover:translate-y-[2px] hover:border-b-2 active:translate-y-[4px] active:border-b-0'
+              }`}
+            >
+              Xác nhận Import ({importData.length})
             </button>
           </div>
         </div>
